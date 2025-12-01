@@ -7,7 +7,7 @@ interface CameraControllerProps {
 }
 
 // Vista más cenital/isométrica (más altura, menos distancia)
-const CAMERA_OFFSET = new THREE.Vector3(5, 12, 20)
+const CAMERA_OFFSET = new THREE.Vector3(10, 18, 30)
 const CAMERA_LOOK_OFFSET = new THREE.Vector3(0, 0, 0)
 const LERP_FACTOR = 0.1
 

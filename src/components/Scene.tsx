@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Physics, RigidBody } from "@react-three/rapier";
 import type { RapierRigidBody } from "@react-three/rapier";
@@ -61,10 +61,16 @@ function Entorno({
 }) {
   const { scene } = useGLTF("/Entorno.glb");
 
+  // Clonar la escena para evitar conflictos con IntroScene que usa el mismo modelo
+  const clonedScene = useMemo(() => {
+    const clone = scene.clone(true);
+    return clone;
+  }, [scene]);
+
   useEffect(() => {
     const objectPositions = new Map<string, THREE.Vector3>();
 
-    scene.traverse((child) => {
+    clonedScene.traverse((child) => {
       // Habilitar sombras en todos los meshes
       if (child instanceof THREE.Mesh) {
         child.castShadow = true;
@@ -83,11 +89,11 @@ function Entorno({
     });
 
     onObjectsFound(objectPositions);
-  }, [scene, onObjectsFound]);
+  }, [clonedScene, onObjectsFound]);
 
   return (
     <RigidBody type="fixed" colliders="trimesh">
-      <primitive object={scene} position={[0, 1.5, 0]} />
+      <primitive object={clonedScene} position={[0, 1.5, 0]} />
     </RigidBody>
   );
 }
@@ -96,9 +102,11 @@ useGLTF.preload("/Entorno.glb");
 
 interface SceneProps {
   onZoneChange?: (zone: string | null) => void;
+  cinematicMode?: boolean;
+  onCinematicEnd?: () => void;
 }
 
-export function Scene({ onZoneChange }: SceneProps) {
+export function Scene({ onZoneChange, cinematicMode = true, onCinematicEnd }: SceneProps) {
   const playerRef = useRef<RapierRigidBody>(null);
   const [objectPositions, setObjectPositions] = useState<
     Map<string, THREE.Vector3>
@@ -182,7 +190,7 @@ export function Scene({ onZoneChange }: SceneProps) {
       </Physics>
 
       {/* Camera controller */}
-      <CameraController target={playerRef} />
+      <CameraController target={playerRef} cinematicMode={cinematicMode} onCinematicEnd={onCinematicEnd} />
     </>
   );
 }

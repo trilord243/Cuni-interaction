@@ -281,46 +281,6 @@ function FloatingEntorno() {
   );
 }
 
-// Partículas de fondo mejoradas
-function Particles() {
-  const particlesRef = useRef<THREE.Points>(null);
-
-  const particles = useMemo(() => {
-    const positions = new Float32Array(800 * 3);
-    for (let i = 0; i < 800; i++) {
-      positions[i * 3] = (Math.random() - 0.5) * 50;
-      positions[i * 3 + 1] = (Math.random() - 0.5) * 30;
-      positions[i * 3 + 2] = (Math.random() - 0.5) * 30 - 10;
-    }
-    return positions;
-  }, []);
-
-  useFrame((state) => {
-    if (particlesRef.current) {
-      particlesRef.current.rotation.y = state.clock.elapsedTime * 0.015;
-      particlesRef.current.rotation.x = state.clock.elapsedTime * 0.01;
-    }
-  });
-
-  return (
-    <points ref={particlesRef}>
-      <bufferGeometry>
-        <bufferAttribute
-          attach="attributes-position"
-          args={[particles, 3]}
-        />
-      </bufferGeometry>
-      <pointsMaterial
-        size={0.08}
-        color="#F68629"
-        transparent
-        opacity={0.8}
-        sizeAttenuation
-      />
-    </points>
-  );
-}
-
 export function IntroScene() {
   return (
     <>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 
 export interface KeyboardControls {
   forward: boolean
@@ -9,8 +9,33 @@ export interface KeyboardControls {
   sprint: boolean
 }
 
+// Store global para controles móviles
+let mobileControls: KeyboardControls = {
+  forward: false,
+  backward: false,
+  left: false,
+  right: false,
+  jump: false,
+  sprint: false,
+}
+
+// Función para actualizar controles móviles desde fuera
+export function setMobileControls(controls: Partial<KeyboardControls>) {
+  mobileControls = { ...mobileControls, ...controls }
+}
+
 export function useKeyboard(): KeyboardControls {
   const [keys, setKeys] = useState<KeyboardControls>({
+    forward: false,
+    backward: false,
+    left: false,
+    right: false,
+    jump: false,
+    sprint: false,
+  })
+
+  // Combinar teclado y móvil
+  const [combined, setCombined] = useState<KeyboardControls>({
     forward: false,
     backward: false,
     left: false,
@@ -99,5 +124,21 @@ export function useKeyboard(): KeyboardControls {
     }
   }, [])
 
-  return keys
+  // Actualizar controles combinados periódicamente
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCombined({
+        forward: keys.forward || mobileControls.forward,
+        backward: keys.backward || mobileControls.backward,
+        left: keys.left || mobileControls.left,
+        right: keys.right || mobileControls.right,
+        jump: keys.jump || mobileControls.jump,
+        sprint: keys.sprint || mobileControls.sprint,
+      })
+    }, 16)
+
+    return () => clearInterval(interval)
+  }, [keys])
+
+  return combined
 }

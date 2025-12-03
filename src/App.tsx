@@ -1,14 +1,30 @@
-import { Suspense, useState, useEffect, useRef } from 'react'
+import { Suspense, useState, useEffect, useRef, useCallback } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { useProgress } from '@react-three/drei'
 import { Scene, ZONE_DATA } from './components/Scene'
 import { IntroScene } from './components/IntroScene'
 import Loader from './loader/Loader'
+import { MobileControls } from './components/MobileControls'
+import { setMobileControls } from './hooks/useKeyboard'
 
 function LoadingScreen({ onStart }: { onStart: () => void }) {
   const { progress, active } = useProgress()
   const [isLoaded, setIsLoaded] = useState(false)
   const [show, setShow] = useState(true)
+  const [isMobileView, setIsMobileView] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth <= 768
+    }
+    return false
+  })
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobileView(window.innerWidth <= 768)
+    }
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
 
   useEffect(() => {
     if (!active && progress === 100) {
@@ -55,24 +71,29 @@ function LoadingScreen({ onStart }: { onStart: () => void }) {
             justifyContent: "center",
             alignItems: "center",
             pointerEvents: "none",
+            padding: isMobileView ? "20px" : "0",
+            boxSizing: "border-box",
           }}
         >
           <h1 style={{
             color: "white",
-            fontSize: "4rem",
+            fontSize: isMobileView ? "1.8rem" : "4rem",
             fontFamily: "system-ui, sans-serif",
             marginBottom: "10px",
             textShadow: "0 0 30px rgba(246, 134, 41, 0.5), 0 4px 20px rgba(0,0,0,0.5)",
-            letterSpacing: "2px",
+            letterSpacing: isMobileView ? "1px" : "2px",
+            textAlign: "center",
           }}>
             Campus UNIMET 3D
           </h1>
           <p style={{
             color: "rgba(255,255,255,0.8)",
-            fontSize: "1.3rem",
-            marginBottom: "50px",
+            fontSize: isMobileView ? "0.9rem" : "1.3rem",
+            marginBottom: isMobileView ? "30px" : "50px",
             fontFamily: "system-ui, sans-serif",
             textShadow: "0 2px 10px rgba(0,0,0,0.5)",
+            textAlign: "center",
+            padding: "0 10px",
           }}>
             Explora el campus de la Universidad Metropolitana
           </p>
@@ -85,9 +106,9 @@ function LoadingScreen({ onStart }: { onStart: () => void }) {
               background: "linear-gradient(135deg, #F68629 0%, #FF8200 100%)",
               color: "white",
               border: "3px solid rgba(255,255,255,0.3)",
-              padding: "20px 60px",
+              padding: isMobileView ? "16px 40px" : "20px 60px",
               borderRadius: "50px",
-              fontSize: "1.4rem",
+              fontSize: isMobileView ? "1rem" : "1.4rem",
               fontWeight: "bold",
               cursor: "pointer",
               boxShadow: "0 0 40px rgba(246, 134, 41, 0.6), 0 10px 40px rgba(0,0,0,0.3)",
@@ -95,7 +116,7 @@ function LoadingScreen({ onStart }: { onStart: () => void }) {
               fontFamily: "system-ui, sans-serif",
               pointerEvents: "auto",
               textTransform: "uppercase",
-              letterSpacing: "3px",
+              letterSpacing: isMobileView ? "2px" : "3px",
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.transform = "scale(1.1)"
@@ -106,16 +127,29 @@ function LoadingScreen({ onStart }: { onStart: () => void }) {
               e.currentTarget.style.boxShadow = "0 0 40px rgba(246, 134, 41, 0.6), 0 10px 40px rgba(0,0,0,0.3)"
             }}
           >
-            Iniciar Experiencia
+            {isMobileView ? "Iniciar" : "Iniciar Experiencia"}
           </button>
-          <p style={{
-            color: "rgba(255,255,255,0.5)",
-            fontSize: "0.9rem",
-            marginTop: "30px",
-            fontFamily: "system-ui, sans-serif",
-          }}>
-            Usa WASD para moverte | Shift para correr | E para interactuar
-          </p>
+          {!isMobileView && (
+            <p style={{
+              color: "rgba(255,255,255,0.5)",
+              fontSize: "0.9rem",
+              marginTop: "30px",
+              fontFamily: "system-ui, sans-serif",
+            }}>
+              Usa WASD para moverte | Shift para correr | E para interactuar
+            </p>
+          )}
+          {isMobileView && (
+            <p style={{
+              color: "rgba(255,255,255,0.5)",
+              fontSize: "0.8rem",
+              marginTop: "20px",
+              fontFamily: "system-ui, sans-serif",
+              textAlign: "center",
+            }}>
+              Usa los controles táctiles para moverte
+            </p>
+          )}
         </div>
       </div>
     )
@@ -128,8 +162,44 @@ function App() {
   const [currentZone, setCurrentZone] = useState<string | null>(null)
   const [isInteracting, setIsInteracting] = useState(false)
   const [isMusicPlaying, setIsMusicPlaying] = useState(false)
+  const [isCinematic, setIsCinematic] = useState(true)
+  const [showGame, setShowGame] = useState(false)
+  // Inicializar isMobile basado en el tamaño actual de la ventana
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth <= 768
+    }
+    return false
+  })
   const audioRef = useRef<HTMLAudioElement>(null)
   const coinSoundRef = useRef<HTMLAudioElement>(null)
+
+  // Detectar si es móvil (solo pantallas pequeñas, no solo touch)
+  useEffect(() => {
+    const checkMobile = () => {
+      // Solo considerar móvil si la pantalla es pequeña
+      const isSmallScreen = window.innerWidth <= 768
+      setIsMobile(isSmallScreen)
+    }
+    // No llamar checkMobile() aquí porque ya inicializamos el estado correctamente
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
+
+  // Manejar controles móviles
+  const handleMobileMove = useCallback((direction: { forward: boolean; backward: boolean; left: boolean; right: boolean; sprint: boolean }) => {
+    setMobileControls(direction)
+  }, [])
+
+  const handleMobileInteract = useCallback(() => {
+    if (currentZone && !isInteracting) {
+      setIsInteracting(true)
+      if (coinSoundRef.current) {
+        coinSoundRef.current.currentTime = 0
+        coinSoundRef.current.play()
+      }
+    }
+  }, [currentZone, isInteracting])
 
   // Iniciar música al comenzar el juego
   const startMusic = () => {
@@ -137,6 +207,13 @@ function App() {
       audioRef.current.play()
       setIsMusicPlaying(true)
     }
+    setShowGame(true)
+    setIsCinematic(true)
+  }
+
+  // Cuando termina la cinemática
+  const handleCinematicEnd = () => {
+    setIsCinematic(false)
   }
 
   // Controlar música
@@ -187,12 +264,82 @@ function App() {
         }}
       >
         <Suspense fallback={null}>
-          <Scene onZoneChange={setCurrentZone} />
+          <Scene
+            onZoneChange={setCurrentZone}
+            cinematicMode={isCinematic && showGame}
+            onCinematicEnd={handleCinematicEnd}
+          />
         </Suspense>
       </Canvas>
 
       {/* Pantalla de carga */}
       <LoadingScreen onStart={startMusic} />
+
+      {/* Mensaje para saltar cinemática */}
+      {showGame && isCinematic && (
+        <div style={{
+          position: 'absolute',
+          bottom: isMobile ? '20px' : '40px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 1000,
+          animation: 'fadeInUp 0.5s ease-out',
+        }}>
+          {isMobile ? (
+            // Botón táctil para saltar en móvil
+            <button
+              onClick={() => {
+                setIsCinematic(false)
+                handleCinematicEnd()
+              }}
+              style={{
+                background: 'rgba(0, 0, 0, 0.7)',
+                color: 'white',
+                padding: '14px 28px',
+                borderRadius: '30px',
+                border: '2px solid rgba(255, 255, 255, 0.3)',
+                fontFamily: 'system-ui, sans-serif',
+                fontSize: '14px',
+                fontWeight: 'bold',
+                backdropFilter: 'blur(10px)',
+                cursor: 'pointer',
+              }}
+            >
+              Toca para saltar
+            </button>
+          ) : (
+            <div style={{
+              background: 'rgba(0, 0, 0, 0.7)',
+              color: 'white',
+              padding: '12px 24px',
+              borderRadius: '30px',
+              border: '2px solid rgba(255, 255, 255, 0.3)',
+              fontFamily: 'system-ui, sans-serif',
+              fontSize: '14px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              backdropFilter: 'blur(10px)',
+            }}>
+              <span style={{ opacity: 0.8 }}>Presiona</span>
+              <kbd style={{
+                background: 'rgba(255, 255, 255, 0.2)',
+                padding: '4px 12px',
+                borderRadius: '6px',
+                fontWeight: 'bold',
+              }}>Space</kbd>
+              <span style={{ opacity: 0.8 }}>o</span>
+              <kbd style={{
+                background: 'rgba(255, 255, 255, 0.2)',
+                padding: '4px 12px',
+                borderRadius: '6px',
+                fontWeight: 'bold',
+              }}>Enter</kbd>
+              <span style={{ opacity: 0.8 }}>para saltar</span>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Audio de fondo */}
       <audio
@@ -212,10 +359,10 @@ function App() {
         onClick={toggleMusic}
         style={{
           position: 'absolute',
-          top: '20px',
-          right: '20px',
-          width: '50px',
-          height: '50px',
+          top: isMobile ? '10px' : '20px',
+          right: isMobile ? '10px' : '20px',
+          width: isMobile ? '44px' : '50px',
+          height: isMobile ? '44px' : '50px',
           borderRadius: '50%',
           border: 'none',
           background: 'rgba(255, 255, 255, 0.9)',
@@ -223,7 +370,7 @@ function App() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: '24px',
+          fontSize: isMobile ? '20px' : '24px',
           boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
           transition: 'transform 0.2s',
           zIndex: 1000,
@@ -235,14 +382,23 @@ function App() {
         {isMusicPlaying ? '🔊' : '🔇'}
       </button>
 
-      {/* Controles */}
-      <div className="instructions">
-        <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> mover
-        <span style={{ margin: '0 10px' }}>|</span>
-        <kbd>Shift</kbd> correr
-        <span style={{ margin: '0 10px' }}>|</span>
-        <kbd>E</kbd> interactuar
-      </div>
+      {/* Controles de teclado (solo desktop) */}
+      {!isMobile && (
+        <div className="instructions">
+          <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> mover
+          <span style={{ margin: '0 10px' }}>|</span>
+          <kbd>Shift</kbd> correr
+          <span style={{ margin: '0 10px' }}>|</span>
+          <kbd>E</kbd> interactuar
+        </div>
+      )}
+
+      {/* Controles móviles táctiles */}
+      <MobileControls
+        onMove={handleMobileMove}
+        onInteract={handleMobileInteract}
+        visible={isMobile && showGame && !isCinematic}
+      />
 
       {/* Estilos de animación */}
       <style>{`
@@ -274,83 +430,98 @@ function App() {
             transform: translateX(-50%) scale(1);
           }
         }
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateX(-50%) translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+          }
+        }
       `}</style>
 
       {/* UI de interacción en la parte inferior */}
       {zoneData && (
         <div style={{
           position: 'absolute',
-          bottom: '80px',
+          bottom: isMobile ? '220px' : '80px',
           left: '50%',
           transform: 'translateX(-50%)',
           zIndex: 1000,
           animation: !isInteracting ? 'slideUp 0.4s ease-out' : 'scaleIn 0.3s ease-out',
+          width: isMobile ? 'auto' : 'auto',
+          maxWidth: isMobile ? '280px' : 'none',
         }}>
           {!isInteracting ? (
-            // Prompt pequeño
+            // Prompt pequeño - en móvil solo emoji y nombre
             <div style={{
-              background: 'rgba(255, 255, 255, 0.98)',
+              background: 'rgba(255, 255, 255, 0.95)',
               color: '#003087',
-              padding: '12px 24px',
-              borderRadius: '30px',
-              border: '3px solid #F68629',
+              padding: isMobile ? '8px 14px' : '12px 24px',
+              borderRadius: '25px',
+              border: isMobile ? '2px solid #F68629' : '3px solid #F68629',
               display: 'flex',
               alignItems: 'center',
-              gap: '12px',
+              justifyContent: 'center',
+              gap: isMobile ? '6px' : '12px',
               boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
               fontFamily: 'system-ui, sans-serif',
               animation: 'pulse 2s infinite',
             }}>
-              <span style={{ fontSize: '24px' }}>{zoneData.emoji}</span>
-              <span style={{ fontWeight: '700', fontSize: '15px', color: '#003087' }}>{zoneData.title}</span>
-              <div style={{
-                background: 'linear-gradient(135deg, #F68629 0%, #FF8200 100%)',
-                color: '#fff',
-                padding: '6px 14px',
-                borderRadius: '20px',
-                fontSize: '13px',
-                fontWeight: 'bold',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-              }}>
-                <kbd style={{
-                  background: '#fff',
-                  color: '#003087',
-                  padding: '2px 8px',
-                  borderRadius: '4px',
-                  fontSize: '12px',
+              <span style={{ fontSize: isMobile ? '16px' : '24px' }}>{zoneData.emoji}</span>
+              <span style={{ fontWeight: '700', fontSize: isMobile ? '11px' : '15px', color: '#003087' }}>{zoneData.title}</span>
+              {!isMobile && (
+                <div style={{
+                  background: 'linear-gradient(135deg, #F68629 0%, #FF8200 100%)',
+                  color: '#fff',
+                  padding: '6px 14px',
+                  borderRadius: '20px',
+                  fontSize: '13px',
                   fontWeight: 'bold',
-                }}>E</kbd>
-                Saber más
-              </div>
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}>
+                  <kbd style={{
+                    background: '#fff',
+                    color: '#003087',
+                    padding: '2px 8px',
+                    borderRadius: '4px',
+                    fontSize: '12px',
+                    fontWeight: 'bold',
+                  }}>E</kbd>
+                  Saber más
+                </div>
+              )}
             </div>
           ) : (
-            // Panel expandido
+            // Panel expandido - mucho más pequeño en móvil
             <div style={{
               background: 'rgba(255, 255, 255, 0.98)',
               color: '#003087',
-              padding: '24px 32px',
-              borderRadius: '20px',
-              border: '3px solid #F68629',
-              maxWidth: '500px',
+              padding: isMobile ? '12px 16px' : '24px 32px',
+              borderRadius: isMobile ? '16px' : '20px',
+              border: isMobile ? '2px solid #F68629' : '3px solid #F68629',
+              maxWidth: isMobile ? '280px' : '500px',
               boxShadow: '0 8px 40px rgba(0,0,0,0.2)',
               fontFamily: 'system-ui, sans-serif',
               textAlign: 'center',
             }}>
-              <div style={{ fontSize: '48px', marginBottom: '12px' }}>{zoneData.emoji}</div>
+              <div style={{ fontSize: isMobile ? '28px' : '48px', marginBottom: isMobile ? '6px' : '10px' }}>{zoneData.emoji}</div>
               <h2 style={{
-                margin: '0 0 12px 0',
-                fontSize: '22px',
+                margin: isMobile ? '0 0 6px 0' : '0 0 10px 0',
+                fontSize: isMobile ? '14px' : '22px',
                 fontWeight: '700',
                 color: '#003087',
               }}>
                 {zoneData.title}
               </h2>
               <p style={{
-                margin: '0 0 20px 0',
-                fontSize: '15px',
-                lineHeight: '1.6',
+                margin: isMobile ? '0 0 10px 0' : '0 0 16px 0',
+                fontSize: isMobile ? '11px' : '15px',
+                lineHeight: '1.4',
                 color: '#1859A9',
               }}>
                 {zoneData.description}
@@ -361,9 +532,9 @@ function App() {
                   background: 'linear-gradient(135deg, #F68629 0%, #FF8200 100%)',
                   color: '#fff',
                   border: 'none',
-                  padding: '12px 28px',
+                  padding: isMobile ? '8px 20px' : '12px 28px',
                   borderRadius: '25px',
-                  fontSize: '15px',
+                  fontSize: isMobile ? '12px' : '15px',
                   fontWeight: 'bold',
                   cursor: 'pointer',
                   transition: 'transform 0.2s, box-shadow 0.2s',

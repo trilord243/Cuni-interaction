@@ -6,6 +6,7 @@ export interface KeyboardControls {
   left: boolean
   right: boolean
   jump: boolean
+  sprint: boolean
 }
 
 export function useKeyboard(): KeyboardControls {
@@ -15,6 +16,7 @@ export function useKeyboard(): KeyboardControls {
     left: false,
     right: false,
     jump: false,
+    sprint: false,
   })
 
   useEffect(() => {
@@ -38,6 +40,10 @@ export function useKeyboard(): KeyboardControls {
           break
         case 'Space':
           setKeys((prev) => ({ ...prev, jump: true }))
+          break
+        case 'ShiftLeft':
+        case 'ShiftRight':
+          setKeys((prev) => ({ ...prev, sprint: true }))
           break
       }
     }
@@ -63,15 +69,33 @@ export function useKeyboard(): KeyboardControls {
         case 'Space':
           setKeys((prev) => ({ ...prev, jump: false }))
           break
+        case 'ShiftLeft':
+        case 'ShiftRight':
+          setKeys((prev) => ({ ...prev, sprint: false }))
+          break
       }
+    }
+
+    // Reset todas las teclas cuando la ventana pierde el foco
+    const handleBlur = () => {
+      setKeys({
+        forward: false,
+        backward: false,
+        left: false,
+        right: false,
+        jump: false,
+        sprint: false,
+      })
     }
 
     document.addEventListener('keydown', handleKeyDown)
     document.addEventListener('keyup', handleKeyUp)
+    window.addEventListener('blur', handleBlur)
 
     return () => {
       document.removeEventListener('keydown', handleKeyDown)
       document.removeEventListener('keyup', handleKeyUp)
+      window.removeEventListener('blur', handleBlur)
     }
   }, [])
 

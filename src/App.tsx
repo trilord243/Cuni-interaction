@@ -1,49 +1,29 @@
-import { Suspense, useState, useRef } from 'react'
+import { Suspense, useState, useEffect } from 'react'
 import { Canvas } from '@react-three/fiber'
-import { Scene } from './components/Scene'
-import { Popup } from './components/Popup'
-
-interface PopupData {
-  title: string
-  message: string
-}
+import { Scene, ZONE_DATA } from './components/Scene'
 
 function App() {
-  const [currentPopup, setCurrentPopup] = useState<PopupData | null>(null)
-  const [autoMode, setAutoMode] = useState(true)
-  const [freeMode, setFreeMode] = useState(false)
-  const advanceCallbackRef = useRef<(() => void) | null>(null)
+  const [currentZone, setCurrentZone] = useState<string | null>(null)
+  const [isInteracting, setIsInteracting] = useState(false)
 
-  const handleZoneEnter = (_zoneName: string, zoneData: PopupData) => {
-    setCurrentPopup(zoneData)
-  }
-
-  const handleZoneExit = () => {
-    setCurrentPopup(null)
-  }
-
-  const handleClosePopup = () => {
-    setCurrentPopup(null)
-    // When popup closes in auto mode, advance to next waypoint
-    if (autoMode && advanceCallbackRef.current) {
-      advanceCallbackRef.current()
+  // Manejar tecla E para interactuar
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'KeyE' && currentZone && !isInteracting) {
+        setIsInteracting(true)
+      }
     }
-  }
 
-  const handleRegisterAdvance = (callback: () => void) => {
-    advanceCallbackRef.current = callback
-  }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [currentZone, isInteracting])
 
-  const handleTourComplete = () => {
-    setFreeMode(true)
-    setAutoMode(false)
-  }
+  // Reset interacción cuando cambia la zona
+  useEffect(() => {
+    setIsInteracting(false)
+  }, [currentZone])
 
-  const handleSkipTour = () => {
-    setFreeMode(true)
-    setAutoMode(false)
-    setCurrentPopup(null) // Close any open popup
-  }
+  const zoneData = currentZone ? ZONE_DATA[currentZone] : null
 
   return (
     <>
@@ -53,69 +33,114 @@ function App() {
         gl={{ antialias: true }}
       >
         <Suspense fallback={null}>
-          <Scene
-            onZoneEnter={handleZoneEnter}
-            onZoneExit={handleZoneExit}
-            autoMode={autoMode}
-            onRegisterAdvance={handleRegisterAdvance}
-            onTourComplete={handleTourComplete}
-            freeMode={freeMode}
-          />
+          <Scene onZoneChange={setCurrentZone} />
         </Suspense>
       </Canvas>
 
+      {/* Controles */}
       <div className="instructions">
-        {freeMode ? (
-          <>
-            <kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> o{' '}
-            <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> para moverte libremente
-          </>
-        ) : (
-          <>
-            Tour Guiado - Cierra el popup para avanzar al siguiente punto
-          </>
-        )}
+        <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> mover
+        <span style={{ margin: '0 10px' }}>|</span>
+        <kbd>Shift</kbd> correr
+        <span style={{ margin: '0 10px' }}>|</span>
+        <kbd>E</kbd> interactuar
       </div>
 
-      {/* Skip tour button - only visible during guided tour */}
-      {!freeMode && (
-        <button
-          onClick={handleSkipTour}
-          style={{
-            position: 'absolute',
-            top: '20px',
-            right: '20px',
-            padding: '10px 20px',
-            fontSize: '14px',
-            fontWeight: 'bold',
-            backgroundColor: '#ff9800',
-            color: 'white',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-            zIndex: 1000,
-            transition: 'all 0.2s ease',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'scale(1.05)'
-            e.currentTarget.style.backgroundColor = '#f57c00'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'scale(1)'
-            e.currentTarget.style.backgroundColor = '#ff9800'
-          }}
-        >
-          ⏭️ Saltar Tour
-        </button>
-      )}
-
-      {currentPopup && (
-        <Popup
-          title={currentPopup.title}
-          message={currentPopup.message}
-          onClose={handleClosePopup}
-        />
+      {/* UI de interacción en la parte inferior */}
+      {zoneData && (
+        <div style={{
+          position: 'absolute',
+          bottom: '80px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 1000,
+          transition: 'all 0.3s ease',
+        }}>
+          {!isInteracting ? (
+            // Prompt pequeño
+            <div style={{
+              background: 'rgba(255, 255, 255, 0.95)',
+              color: '#333',
+              padding: '12px 24px',
+              borderRadius: '30px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+              fontFamily: 'system-ui, sans-serif',
+            }}>
+              <span style={{ fontSize: '24px' }}>{zoneData.emoji}</span>
+              <span style={{ fontWeight: '600', fontSize: '15px' }}>{zoneData.title}</span>
+              <div style={{
+                background: '#ffd700',
+                color: '#000',
+                padding: '6px 14px',
+                borderRadius: '20px',
+                fontSize: '13px',
+                fontWeight: 'bold',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}>
+                <kbd style={{
+                  background: '#fff',
+                  padding: '2px 8px',
+                  borderRadius: '4px',
+                  fontSize: '12px',
+                }}>E</kbd>
+                Saber más
+              </div>
+            </div>
+          ) : (
+            // Panel expandido
+            <div style={{
+              background: 'rgba(255, 255, 255, 0.98)',
+              color: '#333',
+              padding: '24px 32px',
+              borderRadius: '20px',
+              maxWidth: '500px',
+              boxShadow: '0 8px 40px rgba(0,0,0,0.2)',
+              fontFamily: 'system-ui, sans-serif',
+              textAlign: 'center',
+            }}>
+              <div style={{ fontSize: '48px', marginBottom: '12px' }}>{zoneData.emoji}</div>
+              <h2 style={{
+                margin: '0 0 12px 0',
+                fontSize: '22px',
+                fontWeight: '700',
+                color: '#222',
+              }}>
+                {zoneData.title}
+              </h2>
+              <p style={{
+                margin: '0 0 20px 0',
+                fontSize: '15px',
+                lineHeight: '1.6',
+                color: '#555',
+              }}>
+                {zoneData.description}
+              </p>
+              <button
+                onClick={() => setIsInteracting(false)}
+                style={{
+                  background: 'linear-gradient(135deg, #ffd700 0%, #ffaa00 100%)',
+                  color: '#000',
+                  border: 'none',
+                  padding: '12px 28px',
+                  borderRadius: '25px',
+                  fontSize: '15px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  transition: 'transform 0.2s',
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+                onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+              >
+                ¡Entendido! ✨
+              </button>
+            </div>
+          )}
+        </div>
       )}
     </>
   )

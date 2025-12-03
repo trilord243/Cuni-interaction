@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useRef } from 'react'
+import { forwardRef, useRef, useEffect } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { RigidBody, CapsuleCollider } from '@react-three/rapier'
 import { useGLTF, useAnimations } from '@react-three/drei'
@@ -6,47 +6,26 @@ import { useKeyboard } from '../hooks/useKeyboard'
 import type { RapierRigidBody } from '@react-three/rapier'
 import * as THREE from 'three'
 
-const GUIDED_MOVE_SPEED = 8
-const FREE_MOVE_SPEED = 5
+const MOVE_SPEED = 5
+const SPRINT_SPEED = 12
 
-export interface PlayerHandle extends RapierRigidBody {}
-
-interface PlayerProps {
-  targetPosition?: [number, number, number] | null
-  onTargetReached?: () => void
-  onNavigationInput?: (direction: 'forward' | 'backward') => void
-  freeMode?: boolean
-}
-
-export const Player = forwardRef<RapierRigidBody, PlayerProps>(
-  ({ targetPosition, onTargetReached, onNavigationInput, freeMode = false }, ref) => {
+export const Player = forwardRef<RapierRigidBody, object>(
+  (_props, ref) => {
     const keys = useKeyboard()
-    const gltf = useGLTF('/CuniAnimacion.glb')
+    const walkGltf = useGLTF('/CuniAnimacion.glb')
+    const idleGltf = useGLTF('/IdleCuni.glb')
     const groupRef = useRef<THREE.Group>(null)
-    const { actions } = useAnimations(gltf.animations, groupRef)
+    const { actions: walkActions } = useAnimations(walkGltf.animations, groupRef)
+    const { actions: idleActions } = useAnimations(idleGltf.animations, groupRef)
+    const wasMoving = useRef(false)
 
-    // Log available animations (for debugging)
+    // Start with idle animation
     useEffect(() => {
-      if (gltf.animations.length > 0) {
-        console.log('Available animations:', gltf.animations.map(a => a.name))
+      const idleAction = Object.values(idleActions)[0]
+      if (idleAction) {
+        idleAction.play()
       }
-    }, [gltf.animations])
-
-    // Listen for navigation input in guided mode
-    useEffect(() => {
-      if (freeMode || !onNavigationInput) return
-
-      const handleKeyDown = (e: KeyboardEvent) => {
-        if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') {
-          onNavigationInput('forward')
-        } else if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') {
-          onNavigationInput('backward')
-        }
-      }
-
-      window.addEventListener('keydown', handleKeyDown)
-      return () => window.removeEventListener('keydown', handleKeyDown)
-    }, [onNavigationInput, freeMode])
+    }, [idleActions])
 
     useFrame(() => {
       if (!ref || typeof ref === 'function' || !ref.current) return
@@ -55,74 +34,47 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(
       const moveSpeed = new THREE.Vector2(linvel.x, linvel.z).length()
       const isMoving = moveSpeed > 0.1
 
-      // Play walk animation if moving
-      if (isMoving) {
-        // Try common animation names
-        const walkAction = actions['Walk'] || actions['walk'] || actions['WalkCycle'] || actions['Armature|Walk']
-        if (walkAction && !walkAction.isRunning()) {
+      // Switch animations based on movement
+      if (isMoving && !wasMoving.current) {
+        // Started moving - switch to walk
+        Object.values(idleActions).forEach(action => action?.stop())
+        const walkAction = walkActions['Walk'] || walkActions['walk'] || walkActions['WalkCycle'] || walkActions['Armature|Walk'] || Object.values(walkActions)[0]
+        if (walkAction) {
           walkAction.play()
         }
-      } else {
-        // Stop all animations when not moving
-        Object.values(actions).forEach(action => action?.stop())
+        wasMoving.current = true
+      } else if (!isMoving && wasMoving.current) {
+        // Stopped moving - switch to idle
+        Object.values(walkActions).forEach(action => action?.stop())
+        const idleAction = Object.values(idleActions)[0]
+        if (idleAction) {
+          idleAction.play()
+        }
+        wasMoving.current = false
       }
 
-      if (freeMode) {
-        // Free mode: keyboard control
-        const impulse = { x: 0, y: 0, z: 0 }
+      // Keyboard control
+      const currentSpeed = keys.sprint ? SPRINT_SPEED : MOVE_SPEED
+      const impulse = { x: 0, y: 0, z: 0 }
 
-        if (keys.forward) impulse.z -= FREE_MOVE_SPEED
-        if (keys.backward) impulse.z += FREE_MOVE_SPEED
-        if (keys.left) impulse.x -= FREE_MOVE_SPEED
-        if (keys.right) impulse.x += FREE_MOVE_SPEED
+      if (keys.forward) impulse.z -= currentSpeed
+      if (keys.backward) impulse.z += currentSpeed
+      if (keys.left) impulse.x -= currentSpeed
+      if (keys.right) impulse.x += currentSpeed
 
-        ref.current.setLinvel(
-          {
-            x: impulse.x,
-            y: linvel.y,
-            z: impulse.z,
-          },
-          true
-        )
+      ref.current.setLinvel(
+        {
+          x: impulse.x,
+          y: linvel.y,
+          z: impulse.z,
+        },
+        true
+      )
 
-        // Rotate towards movement direction
-        if (groupRef.current && (impulse.x !== 0 || impulse.z !== 0)) {
-          const angle = Math.atan2(impulse.x, impulse.z)
-          groupRef.current.rotation.y = angle
-        }
-      } else if (targetPosition) {
-        // Guided mode: move towards target waypoint
-        const currentPos = ref.current.translation()
-        const target = new THREE.Vector3(...targetPosition)
-        const current = new THREE.Vector3(currentPos.x, currentPos.y, currentPos.z)
-
-        const direction = new THREE.Vector3().subVectors(target, current)
-        const distance = new THREE.Vector2(direction.x, direction.z).length()
-
-        if (distance < 0.5) {
-          // Reached target
-          ref.current.setLinvel({ x: 0, y: linvel.y, z: 0 }, true)
-          onTargetReached?.()
-        } else {
-          // Move towards target
-          direction.y = 0 // Keep movement horizontal
-          direction.normalize()
-
-          ref.current.setLinvel(
-            {
-              x: direction.x * GUIDED_MOVE_SPEED,
-              y: linvel.y,
-              z: direction.z * GUIDED_MOVE_SPEED,
-            },
-            true
-          )
-
-          // Rotate towards movement direction
-          if (groupRef.current) {
-            const angle = Math.atan2(direction.x, direction.z)
-            groupRef.current.rotation.y = angle
-          }
-        }
+      // Rotate towards movement direction
+      if (groupRef.current && (impulse.x !== 0 || impulse.z !== 0)) {
+        const angle = Math.atan2(impulse.x, impulse.z)
+        groupRef.current.rotation.y = angle
       }
     })
 
@@ -135,9 +87,9 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(
       position={[0, 5, 15]}
       enabledRotations={[false, false, false]}
     >
-      <CapsuleCollider args={[0.5, 0.5]} />
-      <group ref={groupRef} scale={0.6}>
-        <primitive object={gltf.scene} />
+      <CapsuleCollider args={[0.75, 0.75]} />
+      <group ref={groupRef} scale={1.2}>
+        <primitive object={idleGltf.scene} />
       </group>
     </RigidBody>
   )
@@ -145,5 +97,6 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(
 
 Player.displayName = 'Player'
 
-// Preload the model for better performance
+// Preload models for better performance
 useGLTF.preload('/CuniAnimacion.glb')
+useGLTF.preload('/IdleCuni.glb')

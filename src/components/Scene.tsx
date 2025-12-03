@@ -1,152 +1,144 @@
-import { useRef, useState, useCallback, useEffect } from 'react'
-import { Physics } from '@react-three/rapier'
-import type { RapierRigidBody } from '@react-three/rapier'
-import { Sky, Environment } from '@react-three/drei'
-import { Ground } from './Ground'
-import { Player } from './Player'
-import { CameraController } from './CameraController'
-import { InvisibleWalls } from './InvisibleWalls'
-import { InteractiveZone } from './InteractiveZone'
-import { useGuidedTour } from './GuidedTour'
-import type { Waypoint } from './GuidedTour'
-import { Building } from './Building'
+import { useRef, useEffect, useState } from "react";
+import { useFrame } from "@react-three/fiber";
+import { Physics, RigidBody } from "@react-three/rapier";
+import type { RapierRigidBody } from "@react-three/rapier";
+import { Environment, useGLTF } from "@react-three/drei";
+import { Player } from "./Player";
+import { CameraController } from "./CameraController";
+import { InvisibleWalls } from "./InvisibleWalls";
+import * as THREE from "three";
 
-interface SceneProps {
-  onZoneEnter: (zoneName: string, zoneData: any) => void
-  onZoneExit: () => void
-  autoMode?: boolean
-  onRegisterAdvance?: (advanceCallback: () => void) => void
-  onTourComplete?: () => void
-  freeMode?: boolean
-}
-
-// Define waypoints for the guided tour (linear layout for easy repositioning)
-const TOUR_WAYPOINTS: Waypoint[] = [
-  {
-    position: [-20, 1, 8],
-    name: 'Edificio EMG',
-    description: 'Edificio de Ingeniería EMG - Laboratorios de computación, robótica y ciencias aplicadas',
+// Datos de las zonas interactivas - exportado para usar en App.tsx
+export const ZONE_DATA: Record<string, {
+  name: string;
+  title: string;
+  description: string;
+  emoji: string;
+  radius: number;
+}> = {
+  SamanMadera: {
+    name: "SamanMadera",
+    title: "El Samán",
+    emoji: "🌳",
+    description: "Emblema arbóreo de la UNIMET. Este árbol es hijo del samán original de San Bernardino donde nació la universidad en 1970. Sembrado en 1976, representa 'inquietud, convivencia y honor' según el Himno de la UNIMET.",
+    radius: 25,
   },
-  {
-    position: [0, 1, 8],
-    name: 'Biblioteca',
-    description: 'Biblioteca Central - Más de 50,000 volúmenes y espacios modernos de estudio',
+  EMG: {
+    name: "EMG",
+    title: "Edificio Eugenio Mendoza",
+    emoji: "🏛️",
+    description: "Nombrado en honor al fundador de la universidad, Don Eugenio Mendoza Goiticoa. Aquí se forman los ingenieros del mañana en las áreas de Producción, Química, Eléctrica, Mecánica y Computación.",
+    radius: 45,
   },
-  {
-    position: [20, 1, 8],
-    name: 'Capilla',
-    description: 'Capilla Unimet - Espacio de reflexión y eventos espirituales de la universidad',
+  Biblioteca: {
+    name: "Biblioteca",
+    title: "Biblioteca Pedro Grases",
+    emoji: "📚",
+    description: "Inaugurada en 1983, lleva el nombre del bibliógrafo que donó más de 70,000 volúmenes. Es la biblioteca #1 de Venezuela según rankings del sector. ¡Un templo del conocimiento!",
+    radius: 35,
   },
-  {
-    position: [40, 1, 25],
-    name: 'Centro Deportivo',
-    description: 'Centro Deportivo - Canchas, gimnasio y áreas recreativas para toda la comunidad',
+  CirculoCruz: {
+    name: "CirculoCruz",
+    title: "Cromoestructura Cruz-Diez",
+    emoji: "🎨",
+    description: "Obra monumental del artista cinético Carlos Cruz-Diez, donada antes de su muerte en 2019. Dos semicírculos de aluminio de 3.5m de altura que juegan con la luz y el color.",
+    radius: 20,
   },
-  {
-    position: [-35, 1, 20],
-    name: 'Cafetería Principal',
-    description: 'Cafetería Principal - Servicios de alimentación y áreas de descanso',
-  },
-  {
-    position: [5, 1, 10],
-    name: 'Edificio Administrativo',
-    description: 'Edificio Administrativo - Oficinas de rectoría, admisiones y servicios estudiantiles',
-  },
-  {
-    position: [0, 1, 0],
-    name: 'Fin del Tour',
-    description: 'Gracias por visitar el Campus Unimet. Esperamos que hayas disfrutado el recorrido.',
-  },
-]
+};
 
-export function Scene({ onZoneEnter, onZoneExit, autoMode = false, onRegisterAdvance, onTourComplete, freeMode = false }: SceneProps) {
-  const playerRef = useRef<RapierRigidBody>(null)
-  const [currentTarget, setCurrentTarget] = useState<[number, number, number] | null>(null)
-  const lastInputTime = useRef(0)
-  const lastPopupWaypoint = useRef<number>(-1) // Track which waypoint popup was shown for
-  const INPUT_COOLDOWN = 500 // ms
+// Componente para el entorno completo del campus
+function Entorno({
+  onObjectsFound,
+}: {
+  onObjectsFound: (objects: Map<string, THREE.Vector3>) => void;
+}) {
+  const { scene } = useGLTF("/Entorno.glb");
 
-  const tour = useGuidedTour({
-    waypoints: TOUR_WAYPOINTS,
-    onWaypointChange: (index, waypoint) => {
-      setCurrentTarget(waypoint.position)
-    },
-  })
+  useEffect(() => {
+    const objectPositions = new Map<string, THREE.Vector3>();
 
-  const handleNavigationInput = useCallback(
-    (direction: 'forward' | 'backward') => {
-      if (autoMode) return // Ignore manual input in auto mode
-
-      const now = Date.now()
-      if (now - lastInputTime.current < INPUT_COOLDOWN) return
-
-      lastInputTime.current = now
-
-      if (direction === 'forward') {
-        tour.goToNext()
-      } else {
-        tour.goToPrevious()
-      }
-    },
-    [tour, autoMode]
-  )
-
-  const handleTargetReached = useCallback(() => {
-    tour.stopMoving()
-
-    // Show popup when waypoint is reached (only once per waypoint)
-    if (lastPopupWaypoint.current !== tour.currentIndex) {
-      const currentWaypoint = TOUR_WAYPOINTS[tour.currentIndex]
-      if (currentWaypoint) {
-        lastPopupWaypoint.current = tour.currentIndex
-        onZoneEnter(currentWaypoint.name, {
-          title: currentWaypoint.name,
-          message: currentWaypoint.description,
-        })
-
-        // Check if this is the last waypoint
-        if (tour.currentIndex === TOUR_WAYPOINTS.length - 1) {
-          onTourComplete?.()
+    scene.traverse((child) => {
+      const zoneNames = Object.keys(ZONE_DATA);
+      for (const zoneName of zoneNames) {
+        if (child.name.includes(zoneName)) {
+          const worldPos = new THREE.Vector3();
+          child.getWorldPosition(worldPos);
+          objectPositions.set(zoneName, worldPos);
+          console.log(`Found ${zoneName} at:`, worldPos);
         }
       }
-    }
-  }, [tour, onZoneEnter, onTourComplete])
+    });
 
-  // Initialize first waypoint - just set the target, don't show popup yet
-  useEffect(() => {
-    setCurrentTarget(TOUR_WAYPOINTS[0].position)
-  }, [])
+    onObjectsFound(objectPositions);
+  }, [scene, onObjectsFound]);
 
-  // Create a stable advance function
-  const advanceToNext = useCallback(() => {
-    if (tour.canGoNext && !tour.isMoving) {
-      tour.goToNext()
-    }
-  }, [tour])
+  return (
+    <RigidBody type="fixed" colliders="trimesh">
+      <primitive object={scene} />
+    </RigidBody>
+  );
+}
 
-  // Register advance function with parent (only once)
-  useEffect(() => {
-    if (onRegisterAdvance) {
-      onRegisterAdvance(advanceToNext)
+useGLTF.preload("/Entorno.glb");
+
+interface SceneProps {
+  onZoneChange?: (zone: string | null) => void;
+}
+
+export function Scene({ onZoneChange }: SceneProps) {
+  const playerRef = useRef<RapierRigidBody>(null);
+  const [objectPositions, setObjectPositions] = useState<Map<string, THREE.Vector3>>(new Map());
+  const prevNearbyZone = useRef<string | null>(null);
+
+  // Detectar proximidad a zonas
+  useFrame(() => {
+    if (!playerRef.current) return;
+
+    const currentPlayerPos = playerRef.current.translation();
+
+    let closestZone: string | null = null;
+    let closestDistance = Infinity;
+
+    // Buscar la zona más cercana
+    for (const [zoneName, zonePos] of objectPositions.entries()) {
+      const zoneData = ZONE_DATA[zoneName];
+      if (!zoneData) continue;
+
+      const distance = Math.sqrt(
+        Math.pow(currentPlayerPos.x - zonePos.x, 2) +
+        Math.pow(currentPlayerPos.z - zonePos.z, 2)
+      );
+
+      if (distance < zoneData.radius && distance < closestDistance) {
+        closestZone = zoneName;
+        closestDistance = distance;
+      }
     }
-  }, [onRegisterAdvance, advanceToNext])
+
+    // Notificar cambio de zona
+    if (closestZone !== prevNearbyZone.current) {
+      onZoneChange?.(closestZone);
+      prevNearbyZone.current = closestZone;
+    }
+  });
 
   return (
     <>
-      {/* Sky background */}
-      <Sky
-        distance={450000}
-        sunPosition={[100, 20, 100]}
-        inclination={0.6}
-        azimuth={0.25}
+      {/* HDR Environment - skybox + lighting */}
+      <Environment
+        files="/skybox.exr"
+        background
+        backgroundBlurriness={0}
+        backgroundIntensity={1}
+        backgroundRotation={[0, 0, 0]}
       />
 
       {/* Lights */}
-      <ambientLight intensity={0.5} />
+      <ambientLight intensity={0.3} />
       <directionalLight
         castShadow
         position={[50, 50, 25]}
-        intensity={1.5}
+        intensity={1.2}
         shadow-mapSize-width={2048}
         shadow-mapSize-height={2048}
         shadow-camera-far={100}
@@ -156,90 +148,19 @@ export function Scene({ onZoneEnter, onZoneExit, autoMode = false, onRegisterAdv
         shadow-camera-bottom={-50}
       />
 
-      {/* Environment for reflections */}
-      <Environment preset="sunset" />
-
       {/* Physics world */}
       <Physics gravity={[0, -9.81, 0]}>
-        <Ground />
-        <Player
-          ref={playerRef}
-          targetPosition={currentTarget}
-          onTargetReached={handleTargetReached}
-          onNavigationInput={handleNavigationInput}
-          freeMode={freeMode}
-        />
+        {/* Entorno completo del campus */}
+        <Entorno onObjectsFound={setObjectPositions} />
 
-        {/* Buildings - Linear layout (left to right) */}
-        {/* EMG - Left */}
-        <Building
-          modelPath="/EMG.glb"
-          position={[-20, 0, 0]}
-          scale={0.25}
-          colliderSize={[5, 4, 5]}
-        />
-
-        {/* Biblioteca - Center */}
-        <Building
-          modelPath="/Biblioteca.glb"
-          position={[0, 0, 0]}
-          scale={0.28}
-          colliderSize={[5, 4, 5]}
-        />
-
-        {/* Capilla - Right */}
-        <Building
-          modelPath="/Capilla.glb"
-          position={[20, 0, 0]}
-          scale={0.32}
-          colliderSize={[3.5, 4, 3.5]}
-        />
+        <Player ref={playerRef} />
 
         {/* Barreras invisibles para evitar caídas */}
         <InvisibleWalls size={50} height={10} />
-
-        {/* Waypoint markers */}
-        {TOUR_WAYPOINTS.map((waypoint, index) => (
-          <mesh
-            key={index}
-            castShadow
-            receiveShadow
-            position={[waypoint.position[0], waypoint.position[1] + 1, waypoint.position[2]]}
-          >
-            <boxGeometry args={[2, 3, 2]} />
-            <meshStandardMaterial
-              color={
-                index === 0 || index === TOUR_WAYPOINTS.length - 1
-                  ? '#4caf50' // Verde para inicio/fin
-                  : ['#ff6b6b', '#4fc3f7', '#ffd93d', '#9c27b0', '#ff9800', '#f06292'][
-                      index % 6
-                    ]
-              }
-            />
-          </mesh>
-        ))}
-
-        {/* Interactive zones for free mode - only active in free mode */}
-        {freeMode && TOUR_WAYPOINTS.map((waypoint, index) => (
-          <InteractiveZone
-            key={`zone-${index}`}
-            position={[waypoint.position[0], waypoint.position[1] + 1.5, waypoint.position[2]]}
-            size={[8, 4, 8]}
-            name={waypoint.name}
-            onEnter={() => {
-              onZoneEnter(waypoint.name, {
-                title: waypoint.name,
-                message: waypoint.description,
-              })
-            }}
-            onExit={onZoneExit}
-            showDebug={false}
-          />
-        ))}
       </Physics>
 
       {/* Camera controller */}
       <CameraController target={playerRef} />
     </>
-  )
+  );
 }

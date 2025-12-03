@@ -2,21 +2,124 @@ import { Suspense, useState, useEffect, useRef } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { useProgress } from '@react-three/drei'
 import { Scene, ZONE_DATA } from './components/Scene'
+import { IntroScene } from './components/IntroScene'
 import Loader from './loader/Loader'
 
-function LoadingScreen() {
+function LoadingScreen({ onStart }: { onStart: () => void }) {
   const { progress, active } = useProgress()
+  const [isLoaded, setIsLoaded] = useState(false)
   const [show, setShow] = useState(true)
 
   useEffect(() => {
     if (!active && progress === 100) {
-      // Esperar un poco antes de ocultar el loader
-      const timer = setTimeout(() => setShow(false), 500)
+      const timer = setTimeout(() => setIsLoaded(true), 500)
       return () => clearTimeout(timer)
     }
   }, [active, progress])
 
   if (!show) return null
+
+  // Mostrar pantalla 3D de inicio cuando termine de cargar
+  if (isLoaded) {
+    return (
+      <div
+        style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          width: "100%",
+          height: "100%",
+          zIndex: 9999,
+        }}
+      >
+        {/* Canvas 3D de fondo */}
+        <Canvas
+          camera={{ position: [0, 0, 8], fov: 50 }}
+          style={{ background: "linear-gradient(180deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)" }}
+        >
+          <Suspense fallback={null}>
+            <IntroScene />
+          </Suspense>
+        </Canvas>
+
+        {/* Overlay con título y botón */}
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: "100%",
+            height: "100%",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+            alignItems: "center",
+            pointerEvents: "none",
+          }}
+        >
+          <h1 style={{
+            color: "white",
+            fontSize: "4rem",
+            fontFamily: "system-ui, sans-serif",
+            marginBottom: "10px",
+            textShadow: "0 0 30px rgba(246, 134, 41, 0.5), 0 4px 20px rgba(0,0,0,0.5)",
+            letterSpacing: "2px",
+          }}>
+            Campus UNIMET 3D
+          </h1>
+          <p style={{
+            color: "rgba(255,255,255,0.8)",
+            fontSize: "1.3rem",
+            marginBottom: "50px",
+            fontFamily: "system-ui, sans-serif",
+            textShadow: "0 2px 10px rgba(0,0,0,0.5)",
+          }}>
+            Explora el campus de la Universidad Metropolitana
+          </p>
+          <button
+            onClick={() => {
+              onStart()
+              setShow(false)
+            }}
+            style={{
+              background: "linear-gradient(135deg, #F68629 0%, #FF8200 100%)",
+              color: "white",
+              border: "3px solid rgba(255,255,255,0.3)",
+              padding: "20px 60px",
+              borderRadius: "50px",
+              fontSize: "1.4rem",
+              fontWeight: "bold",
+              cursor: "pointer",
+              boxShadow: "0 0 40px rgba(246, 134, 41, 0.6), 0 10px 40px rgba(0,0,0,0.3)",
+              transition: "transform 0.3s, box-shadow 0.3s",
+              fontFamily: "system-ui, sans-serif",
+              pointerEvents: "auto",
+              textTransform: "uppercase",
+              letterSpacing: "3px",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = "scale(1.1)"
+              e.currentTarget.style.boxShadow = "0 0 60px rgba(246, 134, 41, 0.8), 0 15px 50px rgba(0,0,0,0.4)"
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = "scale(1)"
+              e.currentTarget.style.boxShadow = "0 0 40px rgba(246, 134, 41, 0.6), 0 10px 40px rgba(0,0,0,0.3)"
+            }}
+          >
+            Iniciar Experiencia
+          </button>
+          <p style={{
+            color: "rgba(255,255,255,0.5)",
+            fontSize: "0.9rem",
+            marginTop: "30px",
+            fontFamily: "system-ui, sans-serif",
+          }}>
+            Usa WASD para moverte | Shift para correr | E para interactuar
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   return <Loader message={`Cargando... ${progress.toFixed(0)}%`} />
 }
@@ -27,6 +130,14 @@ function App() {
   const [isMusicPlaying, setIsMusicPlaying] = useState(false)
   const audioRef = useRef<HTMLAudioElement>(null)
   const coinSoundRef = useRef<HTMLAudioElement>(null)
+
+  // Iniciar música al comenzar el juego
+  const startMusic = () => {
+    if (audioRef.current) {
+      audioRef.current.play()
+      setIsMusicPlaying(true)
+    }
+  }
 
   // Controlar música
   const toggleMusic = () => {
@@ -81,7 +192,7 @@ function App() {
       </Canvas>
 
       {/* Pantalla de carga */}
-      <LoadingScreen />
+      <LoadingScreen onStart={startMusic} />
 
       {/* Audio de fondo */}
       <audio

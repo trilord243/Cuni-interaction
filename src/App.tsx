@@ -18,19 +18,7 @@ function LoadingScreen() {
 
   if (!show) return null
 
-  return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      width: '100%',
-      height: '100%',
-      zIndex: 9999,
-      background: '#374151',
-    }}>
-      <Loader message={`Cargando... ${progress.toFixed(0)}%`} />
-    </div>
-  )
+  return <Loader message={`Cargando... ${progress.toFixed(0)}%`} />
 }
 
 function App() {

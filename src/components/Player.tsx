@@ -119,7 +119,7 @@ export const Player = forwardRef<RapierRigidBody, object>((_props, ref) => {
       colliders={false}
       mass={1}
       type="dynamic"
-      position={[0, 2.8, 20]}
+      position={[1, 6, 20]}
       enabledRotations={[false, false, false]}
     >
       <CapsuleCollider args={[0.75, 0.75]} position={[0, 1.5, 0]} />

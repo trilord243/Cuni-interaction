@@ -16,20 +16,26 @@ export const Player = forwardRef<RapierRigidBody, object>((_props, ref) => {
   const { actions } = useAnimations(gltf.animations, groupRef);
   const wasMoving = useRef(false);
 
-  // Clonar la escena para evitar conflictos
+  // Clonar la escena con materiales
   const scene = useMemo(() => {
-    return gltf.scene.clone(true);
-  }, [gltf.scene]);
-
-  // Habilitar sombras en el modelo del player
-  useEffect(() => {
-    scene.traverse((child) => {
+    const cloned = gltf.scene.clone(true);
+    // Clonar materiales para cada mesh
+    cloned.traverse((child) => {
       if (child instanceof THREE.Mesh) {
         child.castShadow = true;
         child.receiveShadow = true;
+        // Clonar el material para evitar compartirlo
+        if (child.material) {
+          if (Array.isArray(child.material)) {
+            child.material = child.material.map(m => m.clone());
+          } else {
+            child.material = child.material.clone();
+          }
+        }
       }
     });
-  }, [scene]);
+    return cloned;
+  }, [gltf.scene]);
 
   useFrame(() => {
     if (!ref || typeof ref === "function" || !ref.current) return;

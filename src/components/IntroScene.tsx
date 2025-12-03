@@ -1,31 +1,33 @@
-import { useRef, useMemo } from "react";
+import { useRef, useMemo, useEffect } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
-import { useGLTF, Float, MeshDistortMaterial, Stars } from "@react-three/drei";
+import { useGLTF, useAnimations, Float, MeshDistortMaterial, Stars } from "@react-three/drei";
 import * as THREE from "three";
 
-// Movimiento de cámara
+// Movimiento de cámara centrada en Cuni
 function CameraAnimation() {
   const { camera } = useThree();
+  const cuniPosition = useMemo(() => new THREE.Vector3(0, 0, 6), []);
 
   useFrame((state) => {
     const t = state.clock.elapsedTime;
-    // Movimiento suave circular de la cámara
-    camera.position.x = Math.sin(t * 0.2) * 3;
-    camera.position.y = Math.cos(t * 0.15) * 1.5 + 1;
-    camera.position.z = 10 + Math.sin(t * 0.1) * 2;
-    camera.lookAt(0, 0, 0);
+    // Movimiento suave circular de la cámara alrededor de Cuni
+    camera.position.x = Math.sin(t * 0.15) * 2;
+    camera.position.y = Math.cos(t * 0.1) * 0.5 + 0.5;
+    camera.position.z = 10 + Math.sin(t * 0.08) * 1;
+    // Siempre mirando a Cuni
+    camera.lookAt(cuniPosition);
   });
 
   return null;
 }
 
-// Cubos flotantes animados
-function FloatingCubes() {
-  const cubesRef = useRef<THREE.Group>(null);
+// Regalos navideños flotantes (cubos)
+function FloatingGifts() {
+  const giftsRef = useRef<THREE.Group>(null);
 
-  const cubes = useMemo(() => {
+  const gifts = useMemo(() => {
     const positions: [number, number, number][] = [];
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < 20; i++) {
       positions.push([
         (Math.random() - 0.5) * 25,
         (Math.random() - 0.5) * 15,
@@ -35,29 +37,31 @@ function FloatingCubes() {
     return positions;
   }, []);
 
+  const colors = ["#ff0000", "#00aa00", "#ffd700", "#ff0000", "#ffffff"];
+
   useFrame((state) => {
-    if (cubesRef.current) {
-      cubesRef.current.rotation.y = state.clock.elapsedTime * 0.03;
+    if (giftsRef.current) {
+      giftsRef.current.rotation.y = state.clock.elapsedTime * 0.02;
     }
   });
 
   return (
-    <group ref={cubesRef}>
-      {cubes.map((pos, i) => (
+    <group ref={giftsRef}>
+      {gifts.map((pos, i) => (
         <Float
           key={i}
-          speed={0.5 + Math.random() * 1.5}
-          rotationIntensity={0.5 + Math.random()}
+          speed={0.3 + Math.random()}
+          rotationIntensity={0.3 + Math.random() * 0.5}
           floatIntensity={0.5 + Math.random()}
         >
-          <mesh position={pos} scale={0.2 + Math.random() * 0.4}>
+          <mesh position={pos} scale={0.2 + Math.random() * 0.3}>
             <boxGeometry args={[1, 1, 1]} />
             <meshStandardMaterial
-              color={i % 3 === 0 ? "#F68629" : i % 3 === 1 ? "#003087" : "#1859A9"}
-              metalness={0.7}
-              roughness={0.2}
-              emissive={i % 3 === 0 ? "#F68629" : "#003087"}
-              emissiveIntensity={0.1}
+              color={colors[i % colors.length]}
+              metalness={0.3}
+              roughness={0.4}
+              emissive={colors[i % colors.length]}
+              emissiveIntensity={0.15}
             />
           </mesh>
         </Float>
@@ -136,27 +140,144 @@ function OrbitingRings() {
   );
 }
 
-// Múltiples Cunis flotando
-function FloatingCunis() {
-  const { scene } = useGLTF("/Cuni.glb");
+// Cuni animado caminando - centrado
+function AnimatedCuni() {
+  const groupRef = useRef<THREE.Group>(null);
+  const { scene, animations } = useGLTF("/CuniAnimacion.glb");
+  const { actions } = useAnimations(animations, groupRef);
 
-  const positions = useMemo(() => [
-    { pos: [4, -1, 2] as [number, number, number], scale: 1.2, speed: 0.5 },
-    { pos: [-5, 1, -3] as [number, number, number], scale: 0.8, speed: 0.7 },
-    { pos: [6, 2, -5] as [number, number, number], scale: 0.6, speed: 0.6 },
-    { pos: [-4, -2, 0] as [number, number, number], scale: 1, speed: 0.8 },
+  useEffect(() => {
+    // Buscar y reproducir la animación de caminar
+    const walkAction =
+      actions["Walk"] ||
+      actions["walk"] ||
+      actions["WalkCycle"] ||
+      actions["Armature|Walk"] ||
+      Object.values(actions)[0];
+
+    if (walkAction) {
+      walkAction.setLoop(THREE.LoopRepeat, Infinity);
+      walkAction.play();
+    }
+  }, [actions]);
+
+  useFrame((state) => {
+    if (groupRef.current) {
+      // Rotación suave para que se vea desde diferentes ángulos
+      groupRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 0.3) * 0.3;
+    }
+  });
+
+  return (
+    <Float speed={1.5} rotationIntensity={0.1} floatIntensity={0.3}>
+      <group ref={groupRef} position={[0, -0.2, 6]} scale={0.4}>
+        <primitive object={scene} />
+      </group>
+    </Float>
+  );
+}
+
+// Copos de nieve cayendo
+function Snowflakes() {
+  const snowRef = useRef<THREE.Points>(null);
+
+  const snowflakes = useMemo(() => {
+    const positions = new Float32Array(1500 * 3);
+    for (let i = 0; i < 1500; i++) {
+      positions[i * 3] = (Math.random() - 0.5) * 60;
+      positions[i * 3 + 1] = Math.random() * 40 - 10;
+      positions[i * 3 + 2] = (Math.random() - 0.5) * 40 - 5;
+    }
+    return positions;
+  }, []);
+
+  useFrame((state) => {
+    if (snowRef.current) {
+      const positions = snowRef.current.geometry.attributes.position.array as Float32Array;
+      for (let i = 0; i < 1500; i++) {
+        positions[i * 3 + 1] -= 0.02 + Math.random() * 0.02; // Caer
+        positions[i * 3] += Math.sin(state.clock.elapsedTime + i) * 0.002; // Movimiento lateral
+
+        // Reset cuando llega abajo
+        if (positions[i * 3 + 1] < -15) {
+          positions[i * 3 + 1] = 25;
+        }
+      }
+      snowRef.current.geometry.attributes.position.needsUpdate = true;
+    }
+  });
+
+  return (
+    <points ref={snowRef}>
+      <bufferGeometry>
+        <bufferAttribute
+          attach="attributes-position"
+          args={[snowflakes, 3]}
+        />
+      </bufferGeometry>
+      <pointsMaterial
+        size={0.15}
+        color="#ffffff"
+        transparent
+        opacity={0.9}
+        sizeAttenuation
+      />
+    </points>
+  );
+}
+
+// Esferas navideñas flotando
+function ChristmasOrnaments() {
+  const ornaments = useMemo(() => [
+    { pos: [-6, 3, -2], color: "#ff0000", scale: 0.4 },
+    { pos: [5, 4, -4], color: "#00ff00", scale: 0.35 },
+    { pos: [-4, -2, -3], color: "#ffd700", scale: 0.45 },
+    { pos: [7, 1, -5], color: "#ff0000", scale: 0.3 },
+    { pos: [-7, 0, -1], color: "#00ff00", scale: 0.4 },
+    { pos: [4, -3, -2], color: "#ffd700", scale: 0.35 },
+    { pos: [-3, 5, -6], color: "#ff0000", scale: 0.5 },
+    { pos: [6, -1, -3], color: "#00ff00", scale: 0.4 },
   ], []);
 
   return (
     <>
-      {positions.map((item, i) => (
-        <Float key={i} speed={item.speed} rotationIntensity={0.3} floatIntensity={1}>
-          <group position={item.pos} scale={item.scale}>
-            <primitive object={scene.clone()} />
-          </group>
+      {ornaments.map((item, i) => (
+        <Float key={i} speed={1 + Math.random()} rotationIntensity={0.5} floatIntensity={1}>
+          <mesh position={item.pos as [number, number, number]} scale={item.scale}>
+            <sphereGeometry args={[1, 32, 32]} />
+            <meshStandardMaterial
+              color={item.color}
+              metalness={0.9}
+              roughness={0.1}
+              emissive={item.color}
+              emissiveIntensity={0.3}
+            />
+          </mesh>
         </Float>
       ))}
     </>
+  );
+}
+
+// Entorno flotando en el fondo
+function FloatingEntorno() {
+  const { scene } = useGLTF("/Entorno.glb");
+  const groupRef = useRef<THREE.Group>(null);
+
+  useFrame((state) => {
+    if (groupRef.current) {
+      const t = state.clock.elapsedTime;
+      // Rotación lenta
+      groupRef.current.rotation.y = t * 0.05;
+      // Movimiento flotante
+      groupRef.current.position.y = Math.sin(t * 0.3) * 0.5 - 8;
+    }
+  });
+
+  return (
+    <group ref={groupRef} position={[0, -8, -25]} scale={0.15}>
+      <primitive object={scene} />
+    </group>
   );
 }
 
@@ -222,17 +343,20 @@ export function IntroScene() {
         color="#F68629"
       />
 
-      {/* Elementos 3D */}
-      <FloatingCubes />
+      {/* Elementos 3D navideños */}
+      <FloatingEntorno />
+      <FloatingGifts />
       <DistortedSphere />
       <OrbitingRings />
-      <Particles />
-      <FloatingCunis />
+      <Snowflakes />
+      <ChristmasOrnaments />
+      <AnimatedCuni />
 
-      {/* Fog para profundidad */}
-      <fog attach="fog" args={["#0a0a1a", 15, 40]} />
+      {/* Fog navideño (azul oscuro) */}
+      <fog attach="fog" args={["#0a1628", 20, 50]} />
     </>
   );
 }
 
-useGLTF.preload("/Cuni.glb");
+useGLTF.preload("/CuniAnimacion.glb");
+useGLTF.preload("/Entorno.glb");

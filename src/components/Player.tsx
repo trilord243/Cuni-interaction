@@ -1,4 +1,4 @@
-import { forwardRef, useRef, useEffect, useMemo } from "react";
+import { forwardRef, useRef, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
 import { RigidBody, CapsuleCollider } from "@react-three/rapier";
 import { useGLTF, useAnimations } from "@react-three/drei";
@@ -11,31 +11,30 @@ const SPRINT_SPEED = 12;
 
 export const Player = forwardRef<RapierRigidBody, object>((_props, ref) => {
   const keys = useKeyboard();
-  const gltf = useGLTF("/CuniAnimacion.glb");
+  const walkGltf = useGLTF("/CuniAnimacion.glb");
+  const idleGltf = useGLTF("/IdleCuni.glb");
   const groupRef = useRef<THREE.Group>(null);
-  const { actions } = useAnimations(gltf.animations, groupRef);
+  const { actions: walkActions } = useAnimations(walkGltf.animations, groupRef);
+  const { actions: idleActions } = useAnimations(idleGltf.animations, groupRef);
   const wasMoving = useRef(false);
 
-  // Clonar la escena con materiales
-  const scene = useMemo(() => {
-    const cloned = gltf.scene.clone(true);
-    // Clonar materiales para cada mesh
-    cloned.traverse((child) => {
+  // Habilitar sombras en el modelo del player
+  useEffect(() => {
+    idleGltf.scene.traverse((child) => {
       if (child instanceof THREE.Mesh) {
         child.castShadow = true;
         child.receiveShadow = true;
-        // Clonar el material para evitar compartirlo
-        if (child.material) {
-          if (Array.isArray(child.material)) {
-            child.material = child.material.map(m => m.clone());
-          } else {
-            child.material = child.material.clone();
-          }
-        }
       }
     });
-    return cloned;
-  }, [gltf.scene]);
+  }, [idleGltf.scene]);
+
+  // Start with idle animation
+  useEffect(() => {
+    const idleAction = Object.values(idleActions)[0];
+    if (idleAction) {
+      idleAction.play();
+    }
+  }, [idleActions]);
 
   useFrame(() => {
     if (!ref || typeof ref === "function" || !ref.current) return;
@@ -44,23 +43,41 @@ export const Player = forwardRef<RapierRigidBody, object>((_props, ref) => {
     const moveSpeed = new THREE.Vector2(linvel.x, linvel.z).length();
     const isMoving = moveSpeed > 0.1;
 
-    // Obtener la acción de caminar
-    const walkAction =
-      actions["Walk"] ||
-      actions["walk"] ||
-      actions["WalkCycle"] ||
-      actions["Armature|Walk"] ||
-      Object.values(actions)[0];
+    // Switch animations based on movement with crossfade
+    const FADE_DURATION = 0.2;
 
-    // Iniciar/detener animación de caminar
     if (isMoving && !wasMoving.current) {
-      if (walkAction) {
+      // Started moving - crossfade to walk
+      const idleAction = Object.values(idleActions)[0];
+      const walkAction =
+        walkActions["Walk"] ||
+        walkActions["walk"] ||
+        walkActions["WalkCycle"] ||
+        walkActions["Armature|Walk"] ||
+        Object.values(walkActions)[0];
+
+      if (walkAction && idleAction) {
+        walkAction.reset().fadeIn(FADE_DURATION).play();
+        idleAction.fadeOut(FADE_DURATION);
+      } else if (walkAction) {
         walkAction.reset().play();
       }
       wasMoving.current = true;
     } else if (!isMoving && wasMoving.current) {
-      if (walkAction) {
-        walkAction.stop();
+      // Stopped moving - crossfade to idle
+      const walkAction =
+        walkActions["Walk"] ||
+        walkActions["walk"] ||
+        walkActions["WalkCycle"] ||
+        walkActions["Armature|Walk"] ||
+        Object.values(walkActions)[0];
+      const idleAction = Object.values(idleActions)[0];
+
+      if (idleAction && walkAction) {
+        idleAction.reset().fadeIn(FADE_DURATION).play();
+        walkAction.fadeOut(FADE_DURATION);
+      } else if (idleAction) {
+        idleAction.reset().play();
       }
       wasMoving.current = false;
     }
@@ -101,7 +118,7 @@ export const Player = forwardRef<RapierRigidBody, object>((_props, ref) => {
     >
       <CapsuleCollider args={[0.75, 0.75]} position={[0, 1.5, 0]} />
       <group ref={groupRef} scale={1.2}>
-        <primitive object={scene} />
+        <primitive object={idleGltf.scene} />
       </group>
     </RigidBody>
   );
@@ -109,5 +126,6 @@ export const Player = forwardRef<RapierRigidBody, object>((_props, ref) => {
 
 Player.displayName = "Player";
 
-// Preload model
+// Preload models for better performance
 useGLTF.preload("/CuniAnimacion.glb");
+useGLTF.preload("/IdleCuni.glb");

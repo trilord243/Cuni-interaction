@@ -291,10 +291,14 @@ export function IntroScene() {
       <Stars radius={100} depth={50} count={3000} factor={4} saturation={0} fade speed={1} />
 
       {/* Luces */}
-      <ambientLight intensity={0.4} />
+      <ambientLight intensity={0.8} />
       <pointLight position={[10, 10, 10]} intensity={2} color="#F68629" />
       <pointLight position={[-10, -10, -10]} intensity={1} color="#003087" />
       <pointLight position={[0, 5, 5]} intensity={1} color="#ffffff" />
+      {/* Luz frontal para iluminar a Cuni */}
+      <pointLight position={[0, 2, 12]} intensity={2.5} color="#ffffff" />
+      <pointLight position={[-3, 1, 10]} intensity={1.5} color="#F68629" />
+      <pointLight position={[3, 1, 10]} intensity={1.5} color="#ffffff" />
       <spotLight
         position={[0, 15, 10]}
         angle={0.4}

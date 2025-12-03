@@ -51,6 +51,22 @@ export const ZONE_DATA: Record<
       "Obra monumental del artista cinético Carlos Cruz-Diez, donada antes de su muerte en 2019. Dos semicírculos de aluminio de 3.5m de altura que juegan con la luz y el color.",
     radius: 20,
   },
+  Gandhi: {
+    name: "Gandhi",
+    title: "Estatua de Mahatma Gandhi",
+    emoji: "🕊️",
+    description:
+      "Primera estatua de tamaño real de Mahatma Gandhi en Latinoamérica. Develada el 2 de octubre de 2020 durante el 50 aniversario de la UNIMET. Símbolo del compromiso universitario con la cultura de paz y no violencia.",
+    radius: 15,
+  },
+  Corimon: {
+    name: "Corimon",
+    title: "Edificio Corimón",
+    emoji: "🔬",
+    description:
+      "Centro de laboratorios y sede del Decanato de Ingeniería. Alberga el Centro RENOVA de energías renovables y paneles solares en su techo que generan el 50% de su consumo eléctrico. ¡Primer campus sustentable de Venezuela!",
+    radius: 35,
+  },
 };
 
 // Componente para el entorno completo del campus

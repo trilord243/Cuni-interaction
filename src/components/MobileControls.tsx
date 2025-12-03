@@ -16,7 +16,7 @@ export function MobileControls({ onMove, onInteract, visible, isLandscape = fals
     sprint: false,
   })
 
-  const intervalRef = useRef<NodeJS.Timeout | null>(null)
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // Enviar estado de movimiento continuamente
   useEffect(() => {

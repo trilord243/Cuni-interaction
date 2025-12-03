@@ -133,6 +133,38 @@ function App() {
         <kbd>E</kbd> interactuar
       </div>
 
+      {/* Estilos de animación */}
+      <style>{`
+        @keyframes slideUp {
+          from {
+            opacity: 0;
+            transform: translateX(-50%) translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+          }
+        }
+        @keyframes pulse {
+          0%, 100% {
+            box-shadow: 0 0 10px 2px rgba(246, 134, 41, 0.6), 0 0 20px 5px rgba(246, 134, 41, 0.3);
+          }
+          50% {
+            box-shadow: 0 0 25px 8px rgba(246, 134, 41, 0.8), 0 0 40px 15px rgba(246, 134, 41, 0.4);
+          }
+        }
+        @keyframes scaleIn {
+          from {
+            opacity: 0;
+            transform: translateX(-50%) scale(0.9);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(-50%) scale(1);
+          }
+        }
+      `}</style>
+
       {/* UI de interacción en la parte inferior */}
       {zoneData && (
         <div style={{
@@ -141,26 +173,28 @@ function App() {
           left: '50%',
           transform: 'translateX(-50%)',
           zIndex: 1000,
-          transition: 'all 0.3s ease',
+          animation: !isInteracting ? 'slideUp 0.4s ease-out' : 'scaleIn 0.3s ease-out',
         }}>
           {!isInteracting ? (
             // Prompt pequeño
             <div style={{
-              background: 'rgba(255, 255, 255, 0.95)',
-              color: '#333',
+              background: 'rgba(255, 255, 255, 0.98)',
+              color: '#003087',
               padding: '12px 24px',
               borderRadius: '30px',
+              border: '3px solid #F68629',
               display: 'flex',
               alignItems: 'center',
               gap: '12px',
               boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
               fontFamily: 'system-ui, sans-serif',
+              animation: 'pulse 2s infinite',
             }}>
               <span style={{ fontSize: '24px' }}>{zoneData.emoji}</span>
-              <span style={{ fontWeight: '600', fontSize: '15px' }}>{zoneData.title}</span>
+              <span style={{ fontWeight: '700', fontSize: '15px', color: '#003087' }}>{zoneData.title}</span>
               <div style={{
-                background: '#ffd700',
-                color: '#000',
+                background: 'linear-gradient(135deg, #F68629 0%, #FF8200 100%)',
+                color: '#fff',
                 padding: '6px 14px',
                 borderRadius: '20px',
                 fontSize: '13px',
@@ -171,9 +205,11 @@ function App() {
               }}>
                 <kbd style={{
                   background: '#fff',
+                  color: '#003087',
                   padding: '2px 8px',
                   borderRadius: '4px',
                   fontSize: '12px',
+                  fontWeight: 'bold',
                 }}>E</kbd>
                 Saber más
               </div>
@@ -182,9 +218,10 @@ function App() {
             // Panel expandido
             <div style={{
               background: 'rgba(255, 255, 255, 0.98)',
-              color: '#333',
+              color: '#003087',
               padding: '24px 32px',
               borderRadius: '20px',
+              border: '3px solid #F68629',
               maxWidth: '500px',
               boxShadow: '0 8px 40px rgba(0,0,0,0.2)',
               fontFamily: 'system-ui, sans-serif',
@@ -195,7 +232,7 @@ function App() {
                 margin: '0 0 12px 0',
                 fontSize: '22px',
                 fontWeight: '700',
-                color: '#222',
+                color: '#003087',
               }}>
                 {zoneData.title}
               </h2>
@@ -203,27 +240,34 @@ function App() {
                 margin: '0 0 20px 0',
                 fontSize: '15px',
                 lineHeight: '1.6',
-                color: '#555',
+                color: '#1859A9',
               }}>
                 {zoneData.description}
               </p>
               <button
                 onClick={() => setIsInteracting(false)}
                 style={{
-                  background: 'linear-gradient(135deg, #ffd700 0%, #ffaa00 100%)',
-                  color: '#000',
+                  background: 'linear-gradient(135deg, #F68629 0%, #FF8200 100%)',
+                  color: '#fff',
                   border: 'none',
                   padding: '12px 28px',
                   borderRadius: '25px',
                   fontSize: '15px',
                   fontWeight: 'bold',
                   cursor: 'pointer',
-                  transition: 'transform 0.2s',
+                  transition: 'transform 0.2s, box-shadow 0.2s',
+                  boxShadow: '0 4px 15px rgba(246, 134, 41, 0.4)',
                 }}
-                onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
-                onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'scale(1.05)'
+                  e.currentTarget.style.boxShadow = '0 6px 20px rgba(246, 134, 41, 0.6)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'scale(1)'
+                  e.currentTarget.style.boxShadow = '0 4px 15px rgba(246, 134, 41, 0.4)'
+                }}
               >
-                ¡Entendido! ✨
+                ¡Entendido!
               </button>
             </div>
           )}

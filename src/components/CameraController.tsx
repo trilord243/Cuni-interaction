@@ -13,17 +13,13 @@ const CAMERA_OFFSET = new THREE.Vector3(10, 18, 30)
 const CAMERA_LOOK_OFFSET = new THREE.Vector3(0, 0, 0)
 const LERP_FACTOR = 0.1
 
-// Puntos de interés para la cinemática orbital
+// Punto de interés para la cinemática orbital - solo el Samán
 // center: punto central alrededor del cual orbitar
 // radius: distancia de la cámara al centro
 // height: altura de la cámara
-// duration: duración de la órbita completa
+// duration: duración de la órbita completa (más lento)
 const CINEMATIC_ORBITS = [
-  { name: "Vista general", center: new THREE.Vector3(0, 5, 0), radius: 60, height: 40, duration: 4 },
-  { name: "Samán", center: new THREE.Vector3(-25, 8, -5), radius: 20, height: 12, duration: 4 },
-  { name: "EMG", center: new THREE.Vector3(-52, 10, -35), radius: 30, height: 18, duration: 4 },
-  { name: "Biblioteca", center: new THREE.Vector3(15, 8, -40), radius: 25, height: 15, duration: 4 },
-  { name: "Cruz Diez", center: new THREE.Vector3(5, 5, 20), radius: 18, height: 10, duration: 4 },
+  { name: "Samán", center: new THREE.Vector3(-25, 8, -5), radius: 25, height: 15, duration: 10 },
 ]
 
 export function CameraController({ target, cinematicMode = false, onCinematicEnd }: CameraControllerProps) {

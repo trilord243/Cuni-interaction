@@ -1,4 +1,4 @@
-import { forwardRef, useRef, useEffect } from "react";
+import { forwardRef, useRef, useEffect, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
 import { RigidBody, CapsuleCollider } from "@react-three/rapier";
 import { useGLTF, useAnimations } from "@react-three/drei";
@@ -11,6 +11,7 @@ const SPRINT_SPEED = 12;
 
 export const Player = forwardRef<RapierRigidBody, object>((_props, ref) => {
   const keys = useKeyboard();
+  const cuniGltf = useGLTF("/Cuni.glb");
   const walkGltf = useGLTF("/CuniAnimacion.glb");
   const idleGltf = useGLTF("/IdleCuni.glb");
   const groupRef = useRef<THREE.Group>(null);
@@ -18,15 +19,20 @@ export const Player = forwardRef<RapierRigidBody, object>((_props, ref) => {
   const { actions: idleActions } = useAnimations(idleGltf.animations, groupRef);
   const wasMoving = useRef(false);
 
+  // Clonar la escena de Cuni.glb para usar su modelo
+  const cuniScene = useMemo(() => {
+    return cuniGltf.scene.clone(true);
+  }, [cuniGltf.scene]);
+
   // Habilitar sombras en el modelo del player
   useEffect(() => {
-    idleGltf.scene.traverse((child) => {
+    cuniScene.traverse((child) => {
       if (child instanceof THREE.Mesh) {
         child.castShadow = true;
         child.receiveShadow = true;
       }
     });
-  }, [idleGltf.scene]);
+  }, [cuniScene]);
 
   // Start with idle animation
   useEffect(() => {
@@ -124,7 +130,7 @@ export const Player = forwardRef<RapierRigidBody, object>((_props, ref) => {
     >
       <CapsuleCollider args={[0.75, 0.75]} position={[0, 1.5, 0]} />
       <group ref={groupRef} scale={1.2}>
-        <primitive object={idleGltf.scene} />
+        <primitive object={cuniScene} />
       </group>
     </RigidBody>
   );
@@ -133,5 +139,6 @@ export const Player = forwardRef<RapierRigidBody, object>((_props, ref) => {
 Player.displayName = "Player";
 
 // Preload models for better performance
+useGLTF.preload("/Cuni.glb");
 useGLTF.preload("/CuniAnimacion.glb");
 useGLTF.preload("/IdleCuni.glb");

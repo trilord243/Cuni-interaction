@@ -167,23 +167,34 @@ function App() {
   // Inicializar isMobile basado en el tamaño actual de la ventana
   const [isMobile, setIsMobile] = useState(() => {
     if (typeof window !== 'undefined') {
-      return window.innerWidth <= 768
+      return window.innerWidth <= 768 || window.innerHeight <= 500
+    }
+    return false
+  })
+  const [isLandscape, setIsLandscape] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth > window.innerHeight && window.innerHeight <= 500
     }
     return false
   })
   const audioRef = useRef<HTMLAudioElement>(null)
   const coinSoundRef = useRef<HTMLAudioElement>(null)
 
-  // Detectar si es móvil (solo pantallas pequeñas, no solo touch)
+  // Detectar si es móvil y orientación
   useEffect(() => {
     const checkMobile = () => {
-      // Solo considerar móvil si la pantalla es pequeña
-      const isSmallScreen = window.innerWidth <= 768
+      // Móvil si pantalla pequeña o altura muy baja (landscape en móvil)
+      const isSmallScreen = window.innerWidth <= 768 || window.innerHeight <= 500
+      const isLandscapeMode = window.innerWidth > window.innerHeight && window.innerHeight <= 500
       setIsMobile(isSmallScreen)
+      setIsLandscape(isLandscapeMode)
     }
-    // No llamar checkMobile() aquí porque ya inicializamos el estado correctamente
     window.addEventListener('resize', checkMobile)
-    return () => window.removeEventListener('resize', checkMobile)
+    window.addEventListener('orientationchange', checkMobile)
+    return () => {
+      window.removeEventListener('resize', checkMobile)
+      window.removeEventListener('orientationchange', checkMobile)
+    }
   }, [])
 
   // Manejar controles móviles
@@ -398,6 +409,7 @@ function App() {
         onMove={handleMobileMove}
         onInteract={handleMobileInteract}
         visible={isMobile && showGame && !isCinematic}
+        isLandscape={isLandscape}
       />
 
       {/* Estilos de animación */}
@@ -446,20 +458,20 @@ function App() {
       {zoneData && (
         <div style={{
           position: 'absolute',
-          bottom: isMobile ? '220px' : '80px',
-          left: '50%',
+          bottom: isLandscape ? '10px' : (isMobile ? '220px' : '80px'),
+          left: isLandscape ? '50%' : '50%',
           transform: 'translateX(-50%)',
           zIndex: 1000,
           animation: !isInteracting ? 'slideUp 0.4s ease-out' : 'scaleIn 0.3s ease-out',
           width: isMobile ? 'auto' : 'auto',
-          maxWidth: isMobile ? '280px' : 'none',
+          maxWidth: isLandscape ? '400px' : (isMobile ? '280px' : 'none'),
         }}>
           {!isInteracting ? (
             // Prompt pequeño - en móvil solo emoji y nombre
             <div style={{
               background: 'rgba(255, 255, 255, 0.95)',
               color: '#003087',
-              padding: isMobile ? '8px 14px' : '12px 24px',
+              padding: isLandscape ? '6px 12px' : (isMobile ? '8px 14px' : '12px 24px'),
               borderRadius: '25px',
               border: isMobile ? '2px solid #F68629' : '3px solid #F68629',
               display: 'flex',
@@ -470,8 +482,8 @@ function App() {
               fontFamily: 'system-ui, sans-serif',
               animation: 'pulse 2s infinite',
             }}>
-              <span style={{ fontSize: isMobile ? '16px' : '24px' }}>{zoneData.emoji}</span>
-              <span style={{ fontWeight: '700', fontSize: isMobile ? '11px' : '15px', color: '#003087' }}>{zoneData.title}</span>
+              <span style={{ fontSize: isLandscape ? '14px' : (isMobile ? '16px' : '24px') }}>{zoneData.emoji}</span>
+              <span style={{ fontWeight: '700', fontSize: isLandscape ? '10px' : (isMobile ? '11px' : '15px'), color: '#003087' }}>{zoneData.title}</span>
               {!isMobile && (
                 <div style={{
                   background: 'linear-gradient(135deg, #F68629 0%, #FF8200 100%)',
@@ -497,48 +509,57 @@ function App() {
               )}
             </div>
           ) : (
-            // Panel expandido - mucho más pequeño en móvil
+            // Panel expandido - mucho más pequeño en móvil y landscape
             <div style={{
               background: 'rgba(255, 255, 255, 0.98)',
               color: '#003087',
-              padding: isMobile ? '12px 16px' : '24px 32px',
+              padding: isLandscape ? '8px 12px' : (isMobile ? '12px 16px' : '24px 32px'),
               borderRadius: isMobile ? '16px' : '20px',
               border: isMobile ? '2px solid #F68629' : '3px solid #F68629',
-              maxWidth: isMobile ? '280px' : '500px',
+              maxWidth: isLandscape ? '400px' : (isMobile ? '280px' : '500px'),
+              maxHeight: isLandscape ? '200px' : 'none',
+              overflowY: isLandscape ? 'auto' : 'visible',
               boxShadow: '0 8px 40px rgba(0,0,0,0.2)',
               fontFamily: 'system-ui, sans-serif',
               textAlign: 'center',
+              display: isLandscape ? 'flex' : 'block',
+              alignItems: isLandscape ? 'center' : 'stretch',
+              gap: isLandscape ? '12px' : '0',
             }}>
-              <div style={{ fontSize: isMobile ? '28px' : '48px', marginBottom: isMobile ? '6px' : '10px' }}>{zoneData.emoji}</div>
-              <h2 style={{
-                margin: isMobile ? '0 0 6px 0' : '0 0 10px 0',
-                fontSize: isMobile ? '14px' : '22px',
-                fontWeight: '700',
-                color: '#003087',
-              }}>
-                {zoneData.title}
-              </h2>
-              <p style={{
-                margin: isMobile ? '0 0 10px 0' : '0 0 16px 0',
-                fontSize: isMobile ? '11px' : '15px',
-                lineHeight: '1.4',
-                color: '#1859A9',
-              }}>
-                {zoneData.description}
-              </p>
+              <div style={{ fontSize: isLandscape ? '24px' : (isMobile ? '28px' : '48px'), marginBottom: isLandscape ? '0' : (isMobile ? '6px' : '10px') }}>{zoneData.emoji}</div>
+              <div style={{ flex: isLandscape ? 1 : 'none', textAlign: isLandscape ? 'left' : 'center' }}>
+                <h2 style={{
+                  margin: isLandscape ? '0 0 4px 0' : (isMobile ? '0 0 6px 0' : '0 0 10px 0'),
+                  fontSize: isLandscape ? '12px' : (isMobile ? '14px' : '22px'),
+                  fontWeight: '700',
+                  color: '#003087',
+                }}>
+                  {zoneData.title}
+                </h2>
+                <p style={{
+                  margin: '0',
+                  fontSize: isLandscape ? '10px' : (isMobile ? '11px' : '15px'),
+                  lineHeight: '1.3',
+                  color: '#1859A9',
+                }}>
+                  {zoneData.description}
+                </p>
+              </div>
               <button
                 onClick={() => setIsInteracting(false)}
                 style={{
                   background: 'linear-gradient(135deg, #F68629 0%, #FF8200 100%)',
                   color: '#fff',
                   border: 'none',
-                  padding: isMobile ? '8px 20px' : '12px 28px',
+                  padding: isLandscape ? '6px 14px' : (isMobile ? '8px 20px' : '12px 28px'),
                   borderRadius: '25px',
-                  fontSize: isMobile ? '12px' : '15px',
+                  fontSize: isLandscape ? '10px' : (isMobile ? '12px' : '15px'),
                   fontWeight: 'bold',
                   cursor: 'pointer',
                   transition: 'transform 0.2s, box-shadow 0.2s',
                   boxShadow: '0 4px 15px rgba(246, 134, 41, 0.4)',
+                  marginTop: isLandscape ? '0' : (isMobile ? '10px' : '16px'),
+                  flexShrink: 0,
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.transform = 'scale(1.05)'

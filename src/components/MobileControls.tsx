@@ -4,9 +4,10 @@ interface MobileControlsProps {
   onMove: (direction: { forward: boolean; backward: boolean; left: boolean; right: boolean; sprint: boolean }) => void
   onInteract: () => void
   visible: boolean
+  isLandscape?: boolean
 }
 
-export function MobileControls({ onMove, onInteract, visible }: MobileControlsProps) {
+export function MobileControls({ onMove, onInteract, visible, isLandscape = false }: MobileControlsProps) {
   const [activeButtons, setActiveButtons] = useState({
     forward: false,
     backward: false,
@@ -44,16 +45,22 @@ export function MobileControls({ onMove, onInteract, visible }: MobileControlsPr
 
   if (!visible) return null
 
+  // Tamaños adaptativos para landscape
+  const btnSize = isLandscape ? 45 : 60
+  const actionBtnSize = isLandscape ? 50 : 70
+  const fontSize = isLandscape ? 18 : 24
+  const actionFontSize = isLandscape ? 11 : 14
+
   const buttonStyle = (isActive: boolean): React.CSSProperties => ({
-    width: '60px',
-    height: '60px',
+    width: `${btnSize}px`,
+    height: `${btnSize}px`,
     borderRadius: '50%',
-    border: '3px solid rgba(255, 255, 255, 0.5)',
+    border: isLandscape ? '2px solid rgba(255, 255, 255, 0.5)' : '3px solid rgba(255, 255, 255, 0.5)',
     background: isActive
       ? 'linear-gradient(135deg, #F68629 0%, #FF8200 100%)'
       : 'rgba(0, 48, 135, 0.7)',
     color: 'white',
-    fontSize: '24px',
+    fontSize: `${fontSize}px`,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -69,15 +76,15 @@ export function MobileControls({ onMove, onInteract, visible }: MobileControlsPr
   })
 
   const actionButtonStyle = (isActive: boolean, color: string): React.CSSProperties => ({
-    width: '70px',
-    height: '70px',
+    width: `${actionBtnSize}px`,
+    height: `${actionBtnSize}px`,
     borderRadius: '50%',
-    border: '3px solid rgba(255, 255, 255, 0.5)',
+    border: isLandscape ? '2px solid rgba(255, 255, 255, 0.5)' : '3px solid rgba(255, 255, 255, 0.5)',
     background: isActive
       ? 'linear-gradient(135deg, #F68629 0%, #FF8200 100%)'
       : color,
     color: 'white',
-    fontSize: '14px',
+    fontSize: `${actionFontSize}px`,
     fontWeight: 'bold',
     display: 'flex',
     alignItems: 'center',
@@ -99,7 +106,7 @@ export function MobileControls({ onMove, onInteract, visible }: MobileControlsPr
       bottom: 0,
       left: 0,
       right: 0,
-      padding: '20px',
+      padding: isLandscape ? '10px' : '20px',
       display: 'flex',
       justifyContent: 'space-between',
       alignItems: 'flex-end',
@@ -109,9 +116,9 @@ export function MobileControls({ onMove, onInteract, visible }: MobileControlsPr
       {/* D-Pad izquierdo */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(3, 60px)',
-        gridTemplateRows: 'repeat(3, 60px)',
-        gap: '5px',
+        gridTemplateColumns: `repeat(3, ${btnSize}px)`,
+        gridTemplateRows: `repeat(3, ${btnSize}px)`,
+        gap: isLandscape ? '3px' : '5px',
         pointerEvents: 'auto',
       }}>
         {/* Fila superior */}
@@ -170,7 +177,7 @@ export function MobileControls({ onMove, onInteract, visible }: MobileControlsPr
       <div style={{
         display: 'flex',
         flexDirection: 'column',
-        gap: '15px',
+        gap: isLandscape ? '8px' : '15px',
         pointerEvents: 'auto',
       }}>
         <button

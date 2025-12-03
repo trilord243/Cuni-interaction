@@ -11,26 +11,25 @@ const SPRINT_SPEED = 12;
 
 export const Player = forwardRef<RapierRigidBody, object>((_props, ref) => {
   const keys = useKeyboard();
-  const cuniGltf = useGLTF("/Cuni.glb");
-  const walkGltf = useGLTF("/CuniAnimacion.glb");
+  const gltf = useGLTF("/CuniAnimacion.glb");
   const groupRef = useRef<THREE.Group>(null);
-  const { actions: walkActions } = useAnimations(walkGltf.animations, groupRef);
+  const { actions } = useAnimations(gltf.animations, groupRef);
   const wasMoving = useRef(false);
 
-  // Clonar la escena de Cuni.glb para usar su modelo
-  const cuniScene = useMemo(() => {
-    return cuniGltf.scene.clone(true);
-  }, [cuniGltf.scene]);
+  // Clonar la escena para evitar conflictos
+  const scene = useMemo(() => {
+    return gltf.scene.clone(true);
+  }, [gltf.scene]);
 
   // Habilitar sombras en el modelo del player
   useEffect(() => {
-    cuniScene.traverse((child) => {
+    scene.traverse((child) => {
       if (child instanceof THREE.Mesh) {
         child.castShadow = true;
         child.receiveShadow = true;
       }
     });
-  }, [cuniScene]);
+  }, [scene]);
 
   useFrame(() => {
     if (!ref || typeof ref === "function" || !ref.current) return;
@@ -41,11 +40,11 @@ export const Player = forwardRef<RapierRigidBody, object>((_props, ref) => {
 
     // Obtener la acción de caminar
     const walkAction =
-      walkActions["Walk"] ||
-      walkActions["walk"] ||
-      walkActions["WalkCycle"] ||
-      walkActions["Armature|Walk"] ||
-      Object.values(walkActions)[0];
+      actions["Walk"] ||
+      actions["walk"] ||
+      actions["WalkCycle"] ||
+      actions["Armature|Walk"] ||
+      Object.values(actions)[0];
 
     // Iniciar/detener animación de caminar
     if (isMoving && !wasMoving.current) {
@@ -96,7 +95,7 @@ export const Player = forwardRef<RapierRigidBody, object>((_props, ref) => {
     >
       <CapsuleCollider args={[0.75, 0.75]} position={[0, 1.5, 0]} />
       <group ref={groupRef} scale={1.2}>
-        <primitive object={cuniScene} />
+        <primitive object={scene} />
       </group>
     </RigidBody>
   );
@@ -104,6 +103,5 @@ export const Player = forwardRef<RapierRigidBody, object>((_props, ref) => {
 
 Player.displayName = "Player";
 
-// Preload models for better performance
-useGLTF.preload("/Cuni.glb");
+// Preload model
 useGLTF.preload("/CuniAnimacion.glb");

@@ -19,7 +19,7 @@ const LERP_FACTOR = 0.1
 // height: altura de la cámara
 // duration: duración de la órbita completa (más lento)
 const CINEMATIC_ORBITS = [
-  { name: "Samán", center: new THREE.Vector3(-25, 8, -5), radius: 25, height: 15, duration: 10 },
+  { name: "Samán", center: new THREE.Vector3(-25, 8, -5), radius: 30, height: 35, duration: 12 },
 ]
 
 export function CameraController({ target, cinematicMode = false, onCinematicEnd }: CameraControllerProps) {

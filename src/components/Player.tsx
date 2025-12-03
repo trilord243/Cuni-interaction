@@ -13,10 +13,8 @@ export const Player = forwardRef<RapierRigidBody, object>((_props, ref) => {
   const keys = useKeyboard();
   const cuniGltf = useGLTF("/Cuni.glb");
   const walkGltf = useGLTF("/CuniAnimacion.glb");
-  const idleGltf = useGLTF("/IdleCuni.glb");
   const groupRef = useRef<THREE.Group>(null);
   const { actions: walkActions } = useAnimations(walkGltf.animations, groupRef);
-  const { actions: idleActions } = useAnimations(idleGltf.animations, groupRef);
   const wasMoving = useRef(false);
 
   // Clonar la escena de Cuni.glb para usar su modelo
@@ -34,62 +32,30 @@ export const Player = forwardRef<RapierRigidBody, object>((_props, ref) => {
     });
   }, [cuniScene]);
 
-  // Start with idle animation
-  useEffect(() => {
-    const idleAction = Object.values(idleActions)[0];
-    if (idleAction) {
-      idleAction.play();
-    }
-  }, [idleActions]);
-
   useFrame(() => {
     if (!ref || typeof ref === "function" || !ref.current) return;
-
-    // Debug: mostrar posición del jugador
-    // const pos = ref.current.translation();
-    // console.log(
-    //   `X: ${pos.x.toFixed(1)}, Y: ${pos.y.toFixed(1)}, Z: ${pos.z.toFixed(1)}`
-    // );
 
     const linvel = ref.current.linvel();
     const moveSpeed = new THREE.Vector2(linvel.x, linvel.z).length();
     const isMoving = moveSpeed > 0.1;
 
-    // Switch animations based on movement with crossfade
-    const FADE_DURATION = 0.2;
+    // Obtener la acción de caminar
+    const walkAction =
+      walkActions["Walk"] ||
+      walkActions["walk"] ||
+      walkActions["WalkCycle"] ||
+      walkActions["Armature|Walk"] ||
+      Object.values(walkActions)[0];
 
+    // Iniciar/detener animación de caminar
     if (isMoving && !wasMoving.current) {
-      // Started moving - crossfade to walk
-      const idleAction = Object.values(idleActions)[0];
-      const walkAction =
-        walkActions["Walk"] ||
-        walkActions["walk"] ||
-        walkActions["WalkCycle"] ||
-        walkActions["Armature|Walk"] ||
-        Object.values(walkActions)[0];
-
-      if (walkAction && idleAction) {
-        walkAction.reset().fadeIn(FADE_DURATION).play();
-        idleAction.fadeOut(FADE_DURATION);
-      } else if (walkAction) {
+      if (walkAction) {
         walkAction.reset().play();
       }
       wasMoving.current = true;
     } else if (!isMoving && wasMoving.current) {
-      // Stopped moving - crossfade to idle
-      const walkAction =
-        walkActions["Walk"] ||
-        walkActions["walk"] ||
-        walkActions["WalkCycle"] ||
-        walkActions["Armature|Walk"] ||
-        Object.values(walkActions)[0];
-      const idleAction = Object.values(idleActions)[0];
-
-      if (idleAction && walkAction) {
-        idleAction.reset().fadeIn(FADE_DURATION).play();
-        walkAction.fadeOut(FADE_DURATION);
-      } else if (idleAction) {
-        idleAction.reset().play();
+      if (walkAction) {
+        walkAction.stop();
       }
       wasMoving.current = false;
     }
@@ -141,4 +107,3 @@ Player.displayName = "Player";
 // Preload models for better performance
 useGLTF.preload("/Cuni.glb");
 useGLTF.preload("/CuniAnimacion.glb");
-useGLTF.preload("/IdleCuni.glb");

@@ -1,16 +1,67 @@
-import { Suspense, useState, useEffect } from 'react'
+import { Suspense, useState, useEffect, useRef } from 'react'
 import { Canvas } from '@react-three/fiber'
+import { useProgress } from '@react-three/drei'
 import { Scene, ZONE_DATA } from './components/Scene'
+import Loader from './loader/Loader'
+
+function LoadingScreen() {
+  const { progress, active } = useProgress()
+  const [show, setShow] = useState(true)
+
+  useEffect(() => {
+    if (!active && progress === 100) {
+      // Esperar un poco antes de ocultar el loader
+      const timer = setTimeout(() => setShow(false), 500)
+      return () => clearTimeout(timer)
+    }
+  }, [active, progress])
+
+  if (!show) return null
+
+  return (
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      width: '100%',
+      height: '100%',
+      zIndex: 9999,
+      background: '#374151',
+    }}>
+      <Loader message={`Cargando... ${progress.toFixed(0)}%`} />
+    </div>
+  )
+}
 
 function App() {
   const [currentZone, setCurrentZone] = useState<string | null>(null)
   const [isInteracting, setIsInteracting] = useState(false)
+  const [isMusicPlaying, setIsMusicPlaying] = useState(false)
+  const audioRef = useRef<HTMLAudioElement>(null)
+  const coinSoundRef = useRef<HTMLAudioElement>(null)
+
+  // Controlar música
+  const toggleMusic = () => {
+    if (audioRef.current) {
+      if (isMusicPlaying) {
+        audioRef.current.pause()
+      } else {
+        audioRef.current.play()
+      }
+      setIsMusicPlaying(!isMusicPlaying)
+    }
+  }
 
   // Manejar tecla E para interactuar
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'KeyE' && currentZone && !isInteracting) {
         setIsInteracting(true)
+        // Reproducir sonido de moneda
+        if (coinSoundRef.current) {
+          coinSoundRef.current.currentTime = 0
+          coinSoundRef.current.play()
+        }
       }
     }
 
@@ -28,14 +79,62 @@ function App() {
   return (
     <>
       <Canvas
-        shadows
+        shadows="soft"
         camera={{ position: [0, 12, 8], fov: 35 }}
-        gl={{ antialias: true }}
+        gl={{
+          antialias: true,
+          toneMapping: 1,
+          toneMappingExposure: 0.9,
+        }}
       >
         <Suspense fallback={null}>
           <Scene onZoneChange={setCurrentZone} />
         </Suspense>
       </Canvas>
+
+      {/* Pantalla de carga */}
+      <LoadingScreen />
+
+      {/* Audio de fondo */}
+      <audio
+        ref={audioRef}
+        src="/Super Mario 64  Ambience Mushroom Castle   4K.mp3"
+        loop
+      />
+
+      {/* Sonido de interacción */}
+      <audio
+        ref={coinSoundRef}
+        src="/Super Mario 64 Coin Sound.mp3"
+      />
+
+      {/* Botón de música */}
+      <button
+        onClick={toggleMusic}
+        style={{
+          position: 'absolute',
+          top: '20px',
+          right: '20px',
+          width: '50px',
+          height: '50px',
+          borderRadius: '50%',
+          border: 'none',
+          background: 'rgba(255, 255, 255, 0.9)',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '24px',
+          boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
+          transition: 'transform 0.2s',
+          zIndex: 1000,
+        }}
+        onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
+        onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+        title={isMusicPlaying ? 'Pausar música' : 'Reproducir música'}
+      >
+        {isMusicPlaying ? '🔊' : '🔇'}
+      </button>
 
       {/* Controles */}
       <div className="instructions">

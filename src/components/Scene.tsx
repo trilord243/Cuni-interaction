@@ -2,46 +2,53 @@ import { useRef, useEffect, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Physics, RigidBody } from "@react-three/rapier";
 import type { RapierRigidBody } from "@react-three/rapier";
-import { Environment, useGLTF } from "@react-three/drei";
+import { useGLTF, ContactShadows, SoftShadows } from "@react-three/drei";
 import { Player } from "./Player";
 import { CameraController } from "./CameraController";
 import { InvisibleWalls } from "./InvisibleWalls";
 import * as THREE from "three";
 
 // Datos de las zonas interactivas - exportado para usar en App.tsx
-export const ZONE_DATA: Record<string, {
-  name: string;
-  title: string;
-  description: string;
-  emoji: string;
-  radius: number;
-}> = {
+export const ZONE_DATA: Record<
+  string,
+  {
+    name: string;
+    title: string;
+    description: string;
+    emoji: string;
+    radius: number;
+  }
+> = {
   SamanMadera: {
     name: "SamanMadera",
     title: "El Samán",
     emoji: "🌳",
-    description: "Emblema arbóreo de la UNIMET. Este árbol es hijo del samán original de San Bernardino donde nació la universidad en 1970. Sembrado en 1976, representa 'inquietud, convivencia y honor' según el Himno de la UNIMET.",
+    description:
+      "Emblema arbóreo de la UNIMET. Este árbol es hijo del samán original de San Bernardino donde nació la universidad en 1970. Sembrado en 1976, representa 'inquietud, convivencia y honor' según el Himno de la UNIMET.",
     radius: 25,
   },
   EMG: {
     name: "EMG",
     title: "Edificio Eugenio Mendoza",
     emoji: "🏛️",
-    description: "Nombrado en honor al fundador de la universidad, Don Eugenio Mendoza Goiticoa. Aquí se forman los ingenieros del mañana en las áreas de Producción, Química, Eléctrica, Mecánica y Computación.",
+    description:
+      "Nombrado en honor al fundador de la universidad, Don Eugenio Mendoza Goiticoa. Aquí se forman los ingenieros del mañana en las áreas de Producción, Química, Eléctrica, Mecánica y Computación.",
     radius: 45,
   },
   Biblioteca: {
     name: "Biblioteca",
     title: "Biblioteca Pedro Grases",
     emoji: "📚",
-    description: "Inaugurada en 1983, lleva el nombre del bibliógrafo que donó más de 70,000 volúmenes. Es la biblioteca #1 de Venezuela según rankings del sector. ¡Un templo del conocimiento!",
+    description:
+      "Inaugurada en 1983, lleva el nombre del bibliógrafo que donó más de 70,000 volúmenes. Es la biblioteca #1 de Venezuela según rankings del sector. ¡Un templo del conocimiento!",
     radius: 35,
   },
   CirculoCruz: {
     name: "CirculoCruz",
     title: "Cromoestructura Cruz-Diez",
     emoji: "🎨",
-    description: "Obra monumental del artista cinético Carlos Cruz-Diez, donada antes de su muerte en 2019. Dos semicírculos de aluminio de 3.5m de altura que juegan con la luz y el color.",
+    description:
+      "Obra monumental del artista cinético Carlos Cruz-Diez, donada antes de su muerte en 2019. Dos semicírculos de aluminio de 3.5m de altura que juegan con la luz y el color.",
     radius: 20,
   },
 };
@@ -58,6 +65,12 @@ function Entorno({
     const objectPositions = new Map<string, THREE.Vector3>();
 
     scene.traverse((child) => {
+      // Habilitar sombras en todos los meshes
+      if (child instanceof THREE.Mesh) {
+        child.castShadow = true;
+        child.receiveShadow = true;
+      }
+
       const zoneNames = Object.keys(ZONE_DATA);
       for (const zoneName of zoneNames) {
         if (child.name.includes(zoneName)) {
@@ -74,7 +87,7 @@ function Entorno({
 
   return (
     <RigidBody type="fixed" colliders="trimesh">
-      <primitive object={scene} />
+      <primitive object={scene} position={[0, 1.5, 0]} />
     </RigidBody>
   );
 }
@@ -87,7 +100,9 @@ interface SceneProps {
 
 export function Scene({ onZoneChange }: SceneProps) {
   const playerRef = useRef<RapierRigidBody>(null);
-  const [objectPositions, setObjectPositions] = useState<Map<string, THREE.Vector3>>(new Map());
+  const [objectPositions, setObjectPositions] = useState<
+    Map<string, THREE.Vector3>
+  >(new Map());
   const prevNearbyZone = useRef<string | null>(null);
 
   // Detectar proximidad a zonas
@@ -106,7 +121,7 @@ export function Scene({ onZoneChange }: SceneProps) {
 
       const distance = Math.sqrt(
         Math.pow(currentPlayerPos.x - zonePos.x, 2) +
-        Math.pow(currentPlayerPos.z - zonePos.z, 2)
+          Math.pow(currentPlayerPos.z - zonePos.z, 2)
       );
 
       if (distance < zoneData.radius && distance < closestDistance) {
@@ -124,28 +139,35 @@ export function Scene({ onZoneChange }: SceneProps) {
 
   return (
     <>
-      {/* HDR Environment - skybox + lighting */}
-      <Environment
-        files="/skybox.exr"
-        background
-        backgroundBlurriness={0}
-        backgroundIntensity={1}
-        backgroundRotation={[0, 0, 0]}
-      />
+      {/* Soft shadows para sombras más realistas */}
+      <SoftShadows size={25} samples={16} focus={0.5} />
 
       {/* Lights */}
-      <ambientLight intensity={0.3} />
+      <ambientLight intensity={3} />
+      <hemisphereLight args={["#87CEEB", "#3d2817", 1]} />
       <directionalLight
         castShadow
-        position={[50, 50, 25]}
-        intensity={1.2}
-        shadow-mapSize-width={2048}
-        shadow-mapSize-height={2048}
-        shadow-camera-far={100}
-        shadow-camera-left={-50}
-        shadow-camera-right={50}
-        shadow-camera-top={50}
-        shadow-camera-bottom={-50}
+        position={[50, 80, 30]}
+        intensity={3}
+        color="#fff5e6"
+        shadow-mapSize-width={4096}
+        shadow-mapSize-height={4096}
+        shadow-camera-far={200}
+        shadow-camera-left={-100}
+        shadow-camera-right={100}
+        shadow-camera-top={100}
+        shadow-camera-bottom={-100}
+        shadow-bias={-0.0001}
+        shadow-normalBias={0.02}
+      />
+
+      {/* Contact shadows para sombras suaves en el suelo */}
+      <ContactShadows
+        position={[0, 0.01, 0]}
+        opacity={0.4}
+        scale={100}
+        blur={2}
+        far={50}
       />
 
       {/* Physics world */}

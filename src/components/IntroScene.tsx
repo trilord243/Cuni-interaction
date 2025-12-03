@@ -1,6 +1,7 @@
 import { useRef, useMemo, useEffect } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
-import { useGLTF, useAnimations, Float, MeshDistortMaterial, Stars } from "@react-three/drei";
+import { useGLTF, Float, MeshDistortMaterial, Stars, useAnimations } from "@react-three/drei";
+import { SkeletonUtils } from "three-stdlib";
 import * as THREE from "three";
 
 // Movimiento de cámara centrada en Cuni
@@ -140,7 +141,7 @@ function OrbitingRings() {
   );
 }
 
-// Cuni animado caminando - centrado
+// Cuni animado caminando - usa CuniAnimacion directamente
 function AnimatedCuni() {
   const groupRef = useRef<THREE.Group>(null);
   const { scene, animations } = useGLTF("/CuniAnimacion.glb");
@@ -264,6 +265,11 @@ function FloatingEntorno() {
   const { scene } = useGLTF("/Entorno.glb");
   const groupRef = useRef<THREE.Group>(null);
 
+  // Clonar la escena para evitar conflictos con la Scene principal
+  const clonedScene = useMemo(() => {
+    return SkeletonUtils.clone(scene);
+  }, [scene]);
+
   useFrame((state) => {
     if (groupRef.current) {
       const t = state.clock.elapsedTime;
@@ -276,7 +282,7 @@ function FloatingEntorno() {
 
   return (
     <group ref={groupRef} position={[0, -8, -25]} scale={0.15}>
-      <primitive object={scene} />
+      <primitive object={clonedScene} />
     </group>
   );
 }
@@ -291,14 +297,12 @@ export function IntroScene() {
       <Stars radius={100} depth={50} count={3000} factor={4} saturation={0} fade speed={1} />
 
       {/* Luces */}
-      <ambientLight intensity={0.8} />
+      <ambientLight intensity={0.6} />
       <pointLight position={[10, 10, 10]} intensity={2} color="#F68629" />
       <pointLight position={[-10, -10, -10]} intensity={1} color="#003087" />
       <pointLight position={[0, 5, 5]} intensity={1} color="#ffffff" />
-      {/* Luz frontal para iluminar a Cuni */}
-      <pointLight position={[0, 2, 12]} intensity={2.5} color="#ffffff" />
-      <pointLight position={[-3, 1, 10]} intensity={1.5} color="#F68629" />
-      <pointLight position={[3, 1, 10]} intensity={1.5} color="#ffffff" />
+      {/* Luz frontal para iluminar mejor a Cuni */}
+      <pointLight position={[0, 1, 10]} intensity={1.5} color="#ffffff" />
       <spotLight
         position={[0, 15, 10]}
         angle={0.4}
